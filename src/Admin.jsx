@@ -805,13 +805,30 @@ function LayerEditor({ bgDataUrl, bgPath, sampleUrl, canvasW, canvasH, elements,
 
 // ── スライダー行 ──────────────────────────────────────────
 function SliderRow({ label, min, max, step=1, value, onChange, unit, display, onReset }) {
-  const shown = display !== undefined ? display : value;
+  // 数値入力用の表示値（%表示の場合は100倍して表示）
+  const isPercent = unit === "%";
+  const shownVal = isPercent ? Math.round(value * 100) : (display !== undefined ? display : value);
+
+  const handleInput = (raw) => {
+    const n = Number(raw);
+    if (isNaN(n)) return;
+    const actual = isPercent ? Math.min(Math.max(n / 100, min), max) : Math.min(Math.max(n, min), max);
+    onChange(actual);
+  };
+
   return (
-    <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+    <div style={{ display:"flex", alignItems:"center", gap:6 }}>
       <span style={{ fontSize:11, color:C.gray, width:56, flexShrink:0 }}>{label}</span>
       <input type="range" min={min} max={max} step={step} value={value}
         onChange={e=>onChange(Number(e.target.value))} style={{ flex:1, accentColor:C.g1 }} />
-      <span style={{ fontSize:11, color:C.gray, width:42, flexShrink:0, textAlign:"right" }}>{shown}{unit}</span>
+      <input type="number"
+        value={shownVal}
+        min={isPercent ? Math.round(min*100) : min}
+        max={isPercent ? Math.round(max*100) : max}
+        step={isPercent ? 1 : step}
+        onChange={e=>handleInput(e.target.value)}
+        style={{ width:54, padding:"3px 6px", background:C.white, border:`1px solid ${C.grayL}`, borderRadius:6, fontSize:11, color:C.ink, outline:"none", textAlign:"right" }} />
+      <span style={{ fontSize:11, color:C.gray, flexShrink:0 }}>{unit}</span>
       <button onClick={onReset} style={{ padding:"2px 6px", background:"none", border:`1px solid ${C.grayL}`, borderRadius:5, fontSize:10, color:C.gray, cursor:"pointer", flexShrink:0 }}>R</button>
     </div>
   );
