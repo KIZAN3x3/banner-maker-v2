@@ -1,0 +1,21 @@
+{
+  "name": "バナーメーカー",
+  "short_name": "バナーメーカー",
+  "description": "参政党バナー作成アプリ",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FAF6F0",
+  "theme_color": "#EB6100",
+  "icons": [
+    {
+      "src": "/BM192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/BM512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
