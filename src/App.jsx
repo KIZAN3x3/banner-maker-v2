@@ -11,7 +11,7 @@ fl.onload = () => {
 };
 
 const GITHUB_OWNER = "KIZAN3x3";
-const GITHUB_REPO  = "banner-maker";
+const GITHUB_REPO  = "banner-maker-v2";
 const RAW_BASE     = `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/main/public`;
 
 const C = {
@@ -34,7 +34,7 @@ const FONTS = [
 
 const TEXT_SIZES = { large:120, medium:72, small:40 };
 const PASSWORD   = "123";
-const SS_KEY     = "banner_maker_v5";
+const SS_KEY     = "banner_maker_v2";
 
 const uid = () => Math.random().toString(36).slice(2,9);
 
@@ -44,11 +44,13 @@ const defaultText = (zIndex=0) => ({
   shadow:false, outline:false, outlineColor:"#000000", outlineWidth:4,
   glow:false, glowColor:"#FF6600",
   x:540, y:960, scale:1, rotate:0, zIndex,
+  locked: false,
 });
 
 const defaultImage = (src, w, h, zIndex=0) => ({
   id:uid(), type:"image", src, naturalW:w, naturalH:h,
   x:540, y:960, scale:1, rotate:0, zIndex,
+  locked: false,
 });
 
 const imgCache = {};
@@ -68,6 +70,15 @@ async function fetchPartsForTab(tabId) {
     if (!res.ok) return [];
     return await res.json();
   } catch { return []; }
+}
+
+// ★テンプレート読み込み
+async function fetchTemplateForTab(tabId) {
+  try {
+    const res = await fetch(`${RAW_BASE}/templates/${tabId}/template.json?t=${Date.now()}`);
+    if (!res.ok) return null;
+    return await res.json();
+  } catch { return null; }
 }
 
 export default function App() {
@@ -142,7 +153,6 @@ function MainApp() {
     const ts=Date.now();
     const bg=new Image(); bg.crossOrigin="anonymous"; bg.onload=()=>setBgImg(bg); bg.onerror=()=>{}; bg.src=tab.bg+"?t="+ts;
     const sm=new Image(); sm.crossOrigin="anonymous"; sm.onload=()=>setSampleImg(sm); sm.src=tab.sample+"?t="+ts;
-    // ★アクティブタブのパーツを読み込む
     fetchPartsForTab(tab.id).then(names=>setParts(names));
   },[activeTab]);
 
@@ -180,12 +190,21 @@ function MainApp() {
       return arr; });
   };
 
-  // ★保存名を編集可能に
+  // ★テンプレートを読み込んで新規作成
+  const startNew = async () => {
+    setElements([]); setSelected(null); setEditing(null); setHistory([]);
+    const tmpl = await fetchTemplateForTab(tab.id);
+    if (tmpl && Array.isArray(tmpl.elements) && tmpl.elements.length > 0) {
+      setElements(tmpl.elements);
+    }
+    setScreen("preview");
+  };
+
   const saveWork = ()=>{
     const key=`${activeTab}_${Date.now()}`;
     const defaultName=`${tab?.label||""} ${new Date().toLocaleDateString("ja-JP")}`;
     const name=window.prompt("保存名を入力してください", defaultName);
-    if(name===null)return; // キャンセル
+    if(name===null)return;
     const work={ id:key, tab:activeTab, name:name||defaultName, elements:JSON.parse(JSON.stringify(elements)), createdAt:Date.now() };
     const updated={...saves,[key]:work}; setSaves(updated); localStorage.setItem(SS_KEY,JSON.stringify(updated)); alert("保存しました！");
   };
@@ -225,9 +244,7 @@ function MainApp() {
   );
 
   return (
-    // ★右側にスクロールバー用のレイアウト
     <div style={{ display:"flex", minHeight:"100vh", background:C.cream, fontFamily:"'Noto Sans JP',sans-serif", color:C.ink }}>
-      {/* メインコンテンツ */}
       <div style={{ flex:1, overflowY:"auto", paddingBottom:60 }} id="main-scroll">
         <AppHeader screen={screen} onBack={screen==="preview"?()=>setScreen("home"):screen==="done"?()=>setScreen("preview"):null} onSave={screen==="preview"?saveWork:null} onUndo={screen==="preview"&&history.length>0?undo:null} />
 
@@ -239,12 +256,11 @@ function MainApp() {
           </div>
         )}
 
-        {screen==="home"    && <HomeScreen tab={tab} tabSaves={tabSaves} onNew={()=>{setElements([]);setSelected(null);setEditing(null);setHistory([]);setScreen("preview");}} onLoad={loadWork} onDelete={deleteWork} onRename={renameWork} />}
+        {screen==="home"    && <HomeScreen tab={tab} tabSaves={tabSaves} onNew={startNew} onLoad={loadWork} onDelete={deleteWork} onRename={renameWork} />}
         {screen==="preview" && <PreviewScreen tab={tab} elements={elements} setElements={setElements} selected={selected} setSelected={setSelected} editing={editing} setEditing={setEditing} bgImg={bgImg} sampleImg={sampleImg} showSample={showSample} setShowSample={setShowSample} parts={parts} canvasRef={previewRef} PW={PW} PH={PH} R={R} addText={addText} addImage={addImage} addPart={addPart} updateEl={updateEl} deleteEl={deleteEl} moveLayer={moveLayer} pushHistory={pushHistory} onGenerate={generate} generating={generating} />}
         {screen==="done"    && <DoneScreen downloadUrl={downloadUrl} onReset={reset} onBack={()=>setScreen("preview")} />}
       </div>
 
-      {/* ★右側スクロールバー */}
       <ScrollBar targetId="main-scroll" />
 
       <style>{`
@@ -260,7 +276,6 @@ function MainApp() {
   );
 }
 
-// ★カスタムスクロールバー
 function ScrollBar({ targetId }) {
   const trackRef = useRef(null);
   const thumbRef = useRef(null);
@@ -334,7 +349,6 @@ function AppHeader({ screen, onBack, onSave, onUndo }) {
   );
 }
 
-// ★バナー名編集ボタン追加
 function HomeScreen({ tab, tabSaves, onNew, onLoad, onDelete, onRename }) {
   return (
     <div style={{ maxWidth:520, margin:"0 auto", padding:"20px 16px 40px" }}>
@@ -348,7 +362,6 @@ function HomeScreen({ tab, tabSaves, onNew, onLoad, onDelete, onRename }) {
                 <div style={{ flex:1, minWidth:0 }}>
                   <div style={{ display:"flex", alignItems:"center", gap:6 }}>
                     <p style={{ margin:0, fontSize:14, fontWeight:700, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{work.name}</p>
-                    {/* ★名前編集ボタン */}
                     <button onClick={()=>onRename(work.id)} style={{ flexShrink:0, padding:"2px 8px", background:"none", border:`1px solid ${C.grayL}`, borderRadius:6, color:C.gray, fontSize:10, cursor:"pointer" }}>✏️</button>
                   </div>
                   <p style={{ margin:"3px 0 0", fontSize:11, color:C.gray }}>{work.elements.length}個の要素</p>
@@ -372,9 +385,10 @@ function PreviewScreen({ tab, elements, setElements, selected, setSelected, edit
 
   const getXY = (cx,cy)=>{ if(!canvasRef.current)return{x:0,y:0}; const rect=canvasRef.current.getBoundingClientRect(); return{x:(cx-rect.left)/R,y:(cy-rect.top)/R}; };
 
+  // ★locked チェック付きドラッグ
   const onMouseDown = (e)=>{
     if(!selected)return;
-    const el=elements.find(el=>el.id===selected); if(!el)return;
+    const el=elements.find(el=>el.id===selected); if(!el||el.locked)return;
     const{x,y}=getXY(e.clientX,e.clientY);
     pushHistory(elements);
     dragging.current={id:el.id,startX:x,startY:y,origX:el.x,origY:el.y};
@@ -394,7 +408,9 @@ function PreviewScreen({ tab, elements, setElements, selected, setSelected, edit
   };
   const onTouchMove = (e)=>{
     e.preventDefault();
+    // ★locked チェック付きピンチ
     if(e.touches.length===2&&selected){
+      const el=elements.find(el=>el.id===selected); if(el?.locked)return;
       const dx=e.touches[0].clientX-e.touches[1].clientX, dy=e.touches[0].clientY-e.touches[1].clientY;
       const dist=Math.sqrt(dx*dx+dy*dy);
       if(pinchRef.current.lastDist){ const ratio=dist/pinchRef.current.lastDist; setElements(els=>els.map(el=>el.id===selected?{...el,scale:Math.min(Math.max(el.scale*ratio,0.1),8)}:el)); }
@@ -457,102 +473,111 @@ function PreviewScreen({ tab, elements, setElements, selected, setSelected, edit
         <div style={{ marginTop:12, background:C.white, borderRadius:12, border:`1px solid ${C.grayLL}`, overflow:"hidden" }}>
           <p style={{ margin:0, padding:"10px 14px", fontSize:12, fontWeight:700, color:C.inkS, borderBottom:`1px solid ${C.grayLL}`, background:C.cream }}>レイヤー（上が前面）　↑↓で並び替え</p>
           <div style={{ display:"flex", flexDirection:"column" }}>
-            {sortedEls.map((el,idx)=>(
-              <div key={el.id} style={{ borderBottom:idx<sortedEls.length-1?`1px solid ${C.grayLL}`:"none" }}>
-                <div onClick={()=>{ setSelected(el.id); if(editing!==el.id)setEditing(null); }} style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 12px", background:selected===el.id?`${C.g1}10`:C.white, cursor:"pointer" }}>
-                  <span style={{ fontSize:16, flexShrink:0 }}>{el.type==="text"?"✏️":"🖼"}</span>
-                  <span style={{ flex:1, fontSize:12, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", color:selected===el.id?C.g1:C.ink, fontWeight:selected===el.id?700:400 }}>
-                    {el.type==="text" ? el.text : el.src?.includes("/stamps/") ? "🏷️ "+el.src.split("/stamps/")[1].split("?")[0] : "画像"}
-                  </span>
-                  <div style={{ display:"flex", gap:4, flexShrink:0 }}>
-                    {selected===el.id&&el.type==="text"&&editing!==el.id&&(
-                      <button onClick={e=>{e.stopPropagation();setEditing(el.id);}} style={{ padding:"4px 10px", background:C.g1, border:"none", borderRadius:6, color:C.white, fontSize:11, fontWeight:700, cursor:"pointer" }}>編集</button>
+            {sortedEls.map((el,idx)=>{
+              const isLocked = el.locked === true;
+              return (
+                <div key={el.id} style={{ borderBottom:idx<sortedEls.length-1?`1px solid ${C.grayLL}`:"none" }}>
+                  <div
+                    onClick={()=>{ if(!isLocked){ setSelected(el.id); if(editing!==el.id)setEditing(null); } }}
+                    style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 12px", background:selected===el.id?`${C.g1}10`:isLocked?`#F5F5F5`:C.white, cursor:isLocked?"not-allowed":"pointer" }}>
+                    <span style={{ fontSize:16, flexShrink:0 }}>{isLocked ? "🔒" : el.type==="text"?"✏️":"🖼"}</span>
+                    <span style={{ flex:1, fontSize:12, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", color:isLocked?C.gray:selected===el.id?C.g1:C.ink, fontWeight:selected===el.id?700:400 }}>
+                      {el.type==="text" ? el.text : el.src?.includes("/stamps/") ? "🏷️ "+el.src.split("/stamps/")[1].split("?")[0] : "画像"}
+                    </span>
+                    {/* ★固定レイヤーはバッジ表示のみ、編集不可 */}
+                    {isLocked ? (
+                      <span style={{ fontSize:10, color:C.gray, background:C.grayLL, padding:"2px 8px", borderRadius:10, flexShrink:0 }}>固定</span>
+                    ) : (
+                      <div style={{ display:"flex", gap:4, flexShrink:0 }}>
+                        {selected===el.id&&el.type==="text"&&editing!==el.id&&(
+                          <button onClick={e=>{e.stopPropagation();setEditing(el.id);}} style={{ padding:"4px 10px", background:C.g1, border:"none", borderRadius:6, color:C.white, fontSize:11, fontWeight:700, cursor:"pointer" }}>編集</button>
+                        )}
+                        <button onClick={e=>{e.stopPropagation();moveLayer(el.id,"up");}}   style={SB()}>↑</button>
+                        <button onClick={e=>{e.stopPropagation();moveLayer(el.id,"down");}} style={SB()}>↓</button>
+                        <button onClick={e=>{e.stopPropagation();if(confirm("削除？"))deleteEl(el.id);}} style={SB("#CC3333")}>✕</button>
+                      </div>
                     )}
-                    <button onClick={e=>{e.stopPropagation();moveLayer(el.id,"up");}}   style={SB()}>↑</button>
-                    <button onClick={e=>{e.stopPropagation();moveLayer(el.id,"down");}} style={SB()}>↓</button>
-                    <button onClick={e=>{e.stopPropagation();if(confirm("削除？"))deleteEl(el.id);}} style={SB("#CC3333")}>✕</button>
                   </div>
-                </div>
 
-                {/* 回転・サイズスライダー（選択中の要素） */}
-                {selected===el.id&&editing!==el.id&&(
-                  <div style={{ padding:"8px 14px 10px", background:`${C.g1}06`, borderTop:`1px solid ${C.grayLL}`, display:"flex", flexDirection:"column", gap:6 }}>
-                    <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                      <span style={{ fontSize:11, color:C.gray, flexShrink:0, width:48 }}>🔄 回転</span>
-                      <input type="range" min="-180" max="180" value={el.rotate||0}
-                        onChange={e=>updateEl(el.id,{rotate:Number(e.target.value)})}
-                        style={{ flex:1, accentColor:C.g1 }} />
-                      <span style={{ fontSize:11, color:C.gray, width:38, textAlign:"right", flexShrink:0 }}>{el.rotate||0}°</span>
-                      <button onClick={()=>updateEl(el.id,{rotate:0})} style={{ padding:"2px 8px", background:"none", border:`1px solid ${C.grayL}`, borderRadius:5, fontSize:10, color:C.gray, cursor:"pointer", flexShrink:0 }}>リセット</button>
-                    </div>
-                    <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                      <span style={{ fontSize:11, color:C.gray, flexShrink:0, width:48 }}>⤢ サイズ</span>
-                      <input type="range" min="0.05" max="5" step="0.01" value={el.scale||1}
-                        onChange={e=>updateEl(el.id,{scale:Number(e.target.value)})}
-                        style={{ flex:1, accentColor:C.g1 }} />
-                      <span style={{ fontSize:11, color:C.gray, width:38, textAlign:"right", flexShrink:0 }}>{Math.round((el.scale||1)*100)}%</span>
-                      <button onClick={()=>updateEl(el.id,{scale:1})} style={{ padding:"2px 8px", background:"none", border:`1px solid ${C.grayL}`, borderRadius:5, fontSize:10, color:C.gray, cursor:"pointer", flexShrink:0 }}>リセット</button>
-                    </div>
-                  </div>
-                )}
-
-                {editing===el.id&&el.type==="text"&&(
-                  <div style={{ padding:"14px", background:`${C.g1}08`, borderTop:`1px solid ${C.g1}30`, animation:"fadeUp 0.2s ease" }}>
-                    <textarea value={el.text} onChange={e=>updateEl(el.id,{text:e.target.value})} style={{ width:"100%", minHeight:72, padding:"10px", background:C.white, border:`1px solid ${C.grayL}`, borderRadius:8, fontSize:15, fontFamily:"'Noto Sans JP',sans-serif", color:C.ink, resize:"vertical", outline:"none", marginBottom:10 }} />
-                    <label style={LS}>フォント</label>
-                    <select value={el.font} onChange={e=>updateEl(el.id,{font:e.target.value})} style={SS}>{FONTS.map(f=><option key={f.id} value={f.id}>{f.name}</option>)}</select>
-                    <label style={LS}>サイズ</label>
-                    <div style={{ display:"flex", gap:6, marginBottom:10 }}>
-                      {[["large","大"],["medium","中"],["small","小"]].map(([v,l])=>(
-                        <button key={v} onClick={()=>updateEl(el.id,{size:v})} style={{ flex:1, padding:"8px", background:el.size===v?C.ink:C.cream, border:`1px solid ${el.size===v?C.ink:C.grayL}`, borderRadius:8, fontSize:13, fontWeight:700, color:el.size===v?C.white:C.ink, cursor:"pointer" }}>{l}</button>
-                      ))}
-                    </div>
-                    <label style={LS}>組方向</label>
-                    <div style={{ display:"flex", gap:6, marginBottom:10 }}>
-                      {[[false,"横組み"],[true,"縦組み"]].map(([v,l])=>(
-                        <button key={String(v)} onClick={()=>updateEl(el.id,{vertical:v})} style={{ flex:1, padding:"8px", background:el.vertical===v?C.ink:C.cream, border:`1px solid ${el.vertical===v?C.ink:C.grayL}`, borderRadius:8, fontSize:13, color:el.vertical===v?C.white:C.ink, cursor:"pointer" }}>{l}</button>
-                      ))}
-                    </div>
-                    <label style={LS}>文字色</label>
-                    <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:10 }}>
-                      <input type="color" value={el.color} onChange={e=>updateEl(el.id,{color:e.target.value})} style={{ width:44, height:36, borderRadius:8, border:`1px solid ${C.grayL}`, cursor:"pointer", padding:2 }} />
-                      <span style={{ fontSize:12, color:C.gray }}>{el.color}</span>
-                    </div>
-                    {/* ★テキストにも回転 */}
-                    <label style={LS}>回転</label>
-                    <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:10 }}>
-                      <input type="range" min="-180" max="180" value={el.rotate||0}
-                        onChange={e=>updateEl(el.id,{rotate:Number(e.target.value)})}
-                        style={{ flex:1, accentColor:C.g1 }} />
-                      <span style={{ fontSize:11, color:C.gray, width:38, flexShrink:0 }}>{el.rotate||0}°</span>
-                      <button onClick={()=>updateEl(el.id,{rotate:0})} style={{ padding:"2px 8px", background:"none", border:`1px solid ${C.grayL}`, borderRadius:5, fontSize:10, color:C.gray, cursor:"pointer" }}>リセット</button>
-                    </div>
-                    <label style={LS}>エフェクト</label>
-                    <div style={{ display:"flex", flexDirection:"column", gap:8, marginBottom:14 }}>
+                  {/* 回転・サイズスライダー（固定レイヤーは非表示） */}
+                  {!isLocked&&selected===el.id&&editing!==el.id&&(
+                    <div style={{ padding:"8px 14px 10px", background:`${C.g1}06`, borderTop:`1px solid ${C.grayLL}`, display:"flex", flexDirection:"column", gap:6 }}>
                       <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                        <input type="checkbox" id={`sh_${el.id}`} checked={el.shadow} onChange={e=>updateEl(el.id,{shadow:e.target.checked})} />
-                        <label htmlFor={`sh_${el.id}`} style={{ fontSize:13, cursor:"pointer" }}>ドロップシャドウ</label>
+                        <span style={{ fontSize:11, color:C.gray, flexShrink:0, width:48 }}>🔄 回転</span>
+                        <input type="range" min="-180" max="180" value={el.rotate||0}
+                          onChange={e=>updateEl(el.id,{rotate:Number(e.target.value)})}
+                          style={{ flex:1, accentColor:C.g1 }} />
+                        <span style={{ fontSize:11, color:C.gray, width:38, textAlign:"right", flexShrink:0 }}>{el.rotate||0}°</span>
+                        <button onClick={()=>updateEl(el.id,{rotate:0})} style={{ padding:"2px 8px", background:"none", border:`1px solid ${C.grayL}`, borderRadius:5, fontSize:10, color:C.gray, cursor:"pointer", flexShrink:0 }}>リセット</button>
                       </div>
-                      <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
-                        <input type="checkbox" id={`ol_${el.id}`} checked={el.outline} onChange={e=>updateEl(el.id,{outline:e.target.checked})} />
-                        <label htmlFor={`ol_${el.id}`} style={{ fontSize:13, cursor:"pointer" }}>縁取り</label>
-                        {el.outline&&<>
-                          <input type="color" value={el.outlineColor} onChange={e=>updateEl(el.id,{outlineColor:e.target.value})} style={{ width:32, height:28, borderRadius:6, border:"none", cursor:"pointer" }} />
-                          <input type="range" min="1" max="20" value={el.outlineWidth} onChange={e=>updateEl(el.id,{outlineWidth:Number(e.target.value)})} style={{ flex:1 }} />
-                          <span style={{ fontSize:11, color:C.gray }}>{el.outlineWidth}px</span>
-                        </>}
-                      </div>
-                      <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
-                        <input type="checkbox" id={`gl_${el.id}`} checked={el.glow} onChange={e=>updateEl(el.id,{glow:e.target.checked})} />
-                        <label htmlFor={`gl_${el.id}`} style={{ fontSize:13, cursor:"pointer" }}>外光（グロー）</label>
-                        {el.glow&&<input type="color" value={el.glowColor} onChange={e=>updateEl(el.id,{glowColor:e.target.value})} style={{ width:32, height:28, borderRadius:6, border:"none", cursor:"pointer" }} />}
+                      <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                        <span style={{ fontSize:11, color:C.gray, flexShrink:0, width:48 }}>⤢ サイズ</span>
+                        <input type="range" min="0.05" max="5" step="0.01" value={el.scale||1}
+                          onChange={e=>updateEl(el.id,{scale:Number(e.target.value)})}
+                          style={{ flex:1, accentColor:C.g1 }} />
+                        <span style={{ fontSize:11, color:C.gray, width:38, textAlign:"right", flexShrink:0 }}>{Math.round((el.scale||1)*100)}%</span>
+                        <button onClick={()=>updateEl(el.id,{scale:1})} style={{ padding:"2px 8px", background:"none", border:`1px solid ${C.grayL}`, borderRadius:5, fontSize:10, color:C.gray, cursor:"pointer", flexShrink:0 }}>リセット</button>
                       </div>
                     </div>
-                    <button onClick={()=>setEditing(null)} style={{ width:"100%", padding:"12px", background:C.ink, border:"none", borderRadius:10, color:C.white, fontSize:14, fontWeight:700, fontFamily:"'Noto Sans JP',sans-serif", cursor:"pointer" }}>✅ 編集完了</button>
-                  </div>
-                )}
-              </div>
-            ))}
+                  )}
+
+                  {!isLocked&&editing===el.id&&el.type==="text"&&(
+                    <div style={{ padding:"14px", background:`${C.g1}08`, borderTop:`1px solid ${C.g1}30`, animation:"fadeUp 0.2s ease" }}>
+                      <textarea value={el.text} onChange={e=>updateEl(el.id,{text:e.target.value})} style={{ width:"100%", minHeight:72, padding:"10px", background:C.white, border:`1px solid ${C.grayL}`, borderRadius:8, fontSize:15, fontFamily:"'Noto Sans JP',sans-serif", color:C.ink, resize:"vertical", outline:"none", marginBottom:10 }} />
+                      <label style={LS}>フォント</label>
+                      <select value={el.font} onChange={e=>updateEl(el.id,{font:e.target.value})} style={SS}>{FONTS.map(f=><option key={f.id} value={f.id}>{f.name}</option>)}</select>
+                      <label style={LS}>サイズ</label>
+                      <div style={{ display:"flex", gap:6, marginBottom:10 }}>
+                        {[["large","大"],["medium","中"],["small","小"]].map(([v,l])=>(
+                          <button key={v} onClick={()=>updateEl(el.id,{size:v})} style={{ flex:1, padding:"8px", background:el.size===v?C.ink:C.cream, border:`1px solid ${el.size===v?C.ink:C.grayL}`, borderRadius:8, fontSize:13, fontWeight:700, color:el.size===v?C.white:C.ink, cursor:"pointer" }}>{l}</button>
+                        ))}
+                      </div>
+                      <label style={LS}>組方向</label>
+                      <div style={{ display:"flex", gap:6, marginBottom:10 }}>
+                        {[[false,"横組み"],[true,"縦組み"]].map(([v,l])=>(
+                          <button key={String(v)} onClick={()=>updateEl(el.id,{vertical:v})} style={{ flex:1, padding:"8px", background:el.vertical===v?C.ink:C.cream, border:`1px solid ${el.vertical===v?C.ink:C.grayL}`, borderRadius:8, fontSize:13, color:el.vertical===v?C.white:C.ink, cursor:"pointer" }}>{l}</button>
+                        ))}
+                      </div>
+                      <label style={LS}>文字色</label>
+                      <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:10 }}>
+                        <input type="color" value={el.color} onChange={e=>updateEl(el.id,{color:e.target.value})} style={{ width:44, height:36, borderRadius:8, border:`1px solid ${C.grayL}`, cursor:"pointer", padding:2 }} />
+                        <span style={{ fontSize:12, color:C.gray }}>{el.color}</span>
+                      </div>
+                      <label style={LS}>回転</label>
+                      <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:10 }}>
+                        <input type="range" min="-180" max="180" value={el.rotate||0}
+                          onChange={e=>updateEl(el.id,{rotate:Number(e.target.value)})}
+                          style={{ flex:1, accentColor:C.g1 }} />
+                        <span style={{ fontSize:11, color:C.gray, width:38, flexShrink:0 }}>{el.rotate||0}°</span>
+                        <button onClick={()=>updateEl(el.id,{rotate:0})} style={{ padding:"2px 8px", background:"none", border:`1px solid ${C.grayL}`, borderRadius:5, fontSize:10, color:C.gray, cursor:"pointer" }}>リセット</button>
+                      </div>
+                      <label style={LS}>エフェクト</label>
+                      <div style={{ display:"flex", flexDirection:"column", gap:8, marginBottom:14 }}>
+                        <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                          <input type="checkbox" id={`sh_${el.id}`} checked={el.shadow} onChange={e=>updateEl(el.id,{shadow:e.target.checked})} />
+                          <label htmlFor={`sh_${el.id}`} style={{ fontSize:13, cursor:"pointer" }}>ドロップシャドウ</label>
+                        </div>
+                        <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+                          <input type="checkbox" id={`ol_${el.id}`} checked={el.outline} onChange={e=>updateEl(el.id,{outline:e.target.checked})} />
+                          <label htmlFor={`ol_${el.id}`} style={{ fontSize:13, cursor:"pointer" }}>縁取り</label>
+                          {el.outline&&<>
+                            <input type="color" value={el.outlineColor} onChange={e=>updateEl(el.id,{outlineColor:e.target.value})} style={{ width:32, height:28, borderRadius:6, border:"none", cursor:"pointer" }} />
+                            <input type="range" min="1" max="20" value={el.outlineWidth} onChange={e=>updateEl(el.id,{outlineWidth:Number(e.target.value)})} style={{ flex:1 }} />
+                            <span style={{ fontSize:11, color:C.gray }}>{el.outlineWidth}px</span>
+                          </>}
+                        </div>
+                        <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+                          <input type="checkbox" id={`gl_${el.id}`} checked={el.glow} onChange={e=>updateEl(el.id,{glow:e.target.checked})} />
+                          <label htmlFor={`gl_${el.id}`} style={{ fontSize:13, cursor:"pointer" }}>外光（グロー）</label>
+                          {el.glow&&<input type="color" value={el.glowColor} onChange={e=>updateEl(el.id,{glowColor:e.target.value})} style={{ width:32, height:28, borderRadius:6, border:"none", cursor:"pointer" }} />}
+                        </div>
+                      </div>
+                      <button onClick={()=>setEditing(null)} style={{ width:"100%", padding:"12px", background:C.ink, border:"none", borderRadius:10, color:C.white, fontSize:14, fontWeight:700, fontFamily:"'Noto Sans JP',sans-serif", cursor:"pointer" }}>✅ 編集完了</button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
@@ -589,7 +614,6 @@ function drawCanvas(canvas, elements, bgImg, W, H, selectedId, CW, CH) {
   const r=W/CW;
   const ctx=canvas.getContext("2d");
   ctx.clearRect(0,0,W,H);
-  // ★キャンバス外をトリミング
   ctx.save();
   ctx.beginPath();
   ctx.rect(0,0,W,H);
@@ -628,7 +652,7 @@ function drawTextEl(ctx, el, r, isSelected) {
     const totalH=lines.length*fontSize*1.3;
     lines.forEach((line,i)=>drawLine(line,0,-totalH/2+(i+0.5)*fontSize*1.3));
   }
-  if(isSelected){
+  if(isSelected&&!el.locked){
     const hw=getElHalfW(el)*el.scale*r, hh=getElHalfH(el)*el.scale*r;
     ctx.strokeStyle="rgba(235,97,0,0.9)"; ctx.lineWidth=2; ctx.setLineDash([6,3]);
     ctx.strokeRect(-hw,-hh,hw*2,hh*2); ctx.setLineDash([]);
@@ -646,7 +670,7 @@ function drawImageEl(ctx, el, r, isSelected) {
   ctx.translate(el.x*r,el.y*r);
   if(el.rotate) ctx.rotate(el.rotate*Math.PI/180);
   ctx.drawImage(img,-w/2,-h/2,w,h);
-  if(isSelected){ctx.strokeStyle="rgba(235,97,0,0.9)";ctx.lineWidth=2;ctx.setLineDash([6,3]);ctx.strokeRect(-w/2,-h/2,w,h);ctx.setLineDash([]);}
+  if(isSelected&&!el.locked){ctx.strokeStyle="rgba(235,97,0,0.9)";ctx.lineWidth=2;ctx.setLineDash([6,3]);ctx.strokeRect(-w/2,-h/2,w,h);ctx.setLineDash([]);}
   ctx.restore();
 }
 
