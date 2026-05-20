@@ -158,10 +158,15 @@ function MainApp() {
   const addText = ()=>{ pushHistory(elements); const el=defaultText(elements.length); setElements(e=>[...e,el]); setSelected(el.id); setEditing(el.id); };
 
   const addImage = (file)=>{
-    const reader=new FileReader();
-    reader.onload=ev=>{ const img=new Image(); img.onload=()=>{ pushHistory(elements); const el=defaultImage(ev.target.result,img.width,img.height,elements.length); setElements(e=>[...e,el]); setSelected(el.id); }; img.src=ev.target.result; };
-    reader.readAsDataURL(file);
-  };
+  const reader=new FileReader();
+  reader.onload=ev=>{ const img=new Image(); img.onload=()=>{
+    pushHistory(elements);
+    const el=defaultImage(ev.target.result,img.width,img.height,0);
+    setElements(e=>[el,...e.map(el=>({...el,zIndex:el.zIndex+1}))]);
+    setSelected(el.id);
+  }; img.src=ev.target.result; };
+  reader.readAsDataURL(file);
+};
 
   const updateEl  = (id,patch)=>setElements(e=>e.map(el=>el.id===id?{...el,...patch}:el));
   const deleteEl  = (id)=>{ pushHistory(elements); setElements(e=>e.filter(el=>el.id!==id)); setSelected(null); setEditing(null); };
