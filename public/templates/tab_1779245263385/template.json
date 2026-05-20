@@ -1,3 +1,25 @@
 {
-  "elements": []
+  "elements": [
+    {
+      "id": "6f3ity3",
+      "type": "text",
+      "text": "テスト",
+      "font": "noto_sans",
+      "size": "medium",
+      "color": "#FFFFFF",
+      "vertical": true,
+      "shadow": true,
+      "outline": false,
+      "outlineColor": "#000000",
+      "outlineWidth": 4,
+      "glow": false,
+      "glowColor": "#FF6600",
+      "x": 540,
+      "y": 675,
+      "scale": 1,
+      "rotate": 0,
+      "zIndex": 0,
+      "locked": false
+    }
+  ]
 }
