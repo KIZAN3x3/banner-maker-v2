@@ -251,7 +251,7 @@ function MainApp() {
         )}
 
         {screen==="home"    && <HomeScreen tab={tab} tabSaves={tabSaves} onNew={startNew} onLoad={loadWork} onDelete={deleteWork} onRename={renameWork} />}
-        {screen==="preview" && <PreviewScreen tab={tab} elements={elements} setElements={setElements} selected={selected} setSelected={setSelected} editing={editing} setEditing={setEditing} bgImg={bgImg} sampleImg={sampleImg} showSample={showSample} setShowSample={setShowSample} parts={parts} canvasRef={previewRef} PW={PW} PH={PH} R={R} addText={addText} addImage={addImage} addPart={addPart} updateEl={updateEl} deleteEl={deleteEl} moveLayer={moveLayer} pushHistory={pushHistory} onGenerate={generate} generating={generating} />}
+        {screen==="preview" && <PreviewScreen tab={tab} elements={elements} setElements={setElements} selected={selected} setSelected={setSelected} editing={editing} setEditing={setEditing} bgImg={bgImg} sampleImg={sampleImg} canvasRef={previewRef} PW={PW} PH={PH} R={R} addText={addText} addImage={addImage} updateEl={updateEl} deleteEl={deleteEl} moveLayer={moveLayer} pushHistory={pushHistory} onGenerate={generate} generating={generating} />}
         {screen==="done"    && <DoneScreen downloadUrl={downloadUrl} onReset={reset} onBack={()=>setScreen("preview")} />}
       </div>
 
