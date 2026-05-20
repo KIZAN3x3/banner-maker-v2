@@ -405,6 +405,7 @@ function TemplateWizard({ onDone, onCancel }) {
         <LayerEditor
           bgDataUrl={bgPrev}
           bgPath={null}
+          sampleUrl={samplePrev}
           canvasW={size.w}
           canvasH={size.h}
           elements={elements}
@@ -517,6 +518,7 @@ function TemplateEditor({ tmpl, onDone, onCancel }) {
         <LayerEditor
           bgDataUrl={bgPrev}
           bgPath={`${RAW_BASE}${tmpl.bg}`}
+          sampleUrl={samplePrev || `${RAW_BASE}${tmpl.sample}`}
           canvasW={tmpl.w||1080}
           canvasH={tmpl.h||1920}
           elements={elements}
@@ -533,7 +535,7 @@ function TemplateEditor({ tmpl, onDone, onCancel }) {
 }
 
 // ── レイヤーエディタ（共通） ──────────────────────────────
-function LayerEditor({ bgDataUrl, bgPath, canvasW, canvasH, elements, setElements, saving, msg, onBack, onSave, saveLabel }) {
+function LayerEditor({ bgDataUrl, bgPath, sampleUrl, canvasW, canvasH, elements, setElements, saving, msg, onBack, onSave, saveLabel }) {
   const [selected, setSelected] = useState(null);
   const [editing,  setEditing]  = useState(null);
   const [bgImg,    setBgImg]    = useState(null);
@@ -657,6 +659,16 @@ function LayerEditor({ bgDataUrl, bgPath, canvasW, canvasH, elements, setElement
       <p style={{ margin:"0 0 10px", fontSize:12, color:C.gray, textAlign:"center" }}>
         ドラッグで移動　ピンチで拡縮　🔒固定にするとユーザーが操作できません
       </p>
+
+      {/* お手本画像 */}
+      {sampleUrl&&(
+        <div style={{ marginBottom:12, background:C.white, borderRadius:10, border:`1px solid ${C.grayLL}`, overflow:"hidden" }}>
+          <p style={{ margin:0, padding:"6px 12px", fontSize:11, color:C.gray, background:C.cream, borderBottom:`1px solid ${C.grayLL}` }}>📌 お手本（参考）</p>
+          <div style={{ padding:8, display:"flex", justifyContent:"center" }}>
+            <img src={sampleUrl} style={{ maxHeight:180, maxWidth:"100%", objectFit:"contain", borderRadius:6, display:"block" }} />
+          </div>
+        </div>
+      )}
 
       {/* キャンバス */}
       <div style={{ display:"flex", justifyContent:"center", marginBottom:12 }}>
