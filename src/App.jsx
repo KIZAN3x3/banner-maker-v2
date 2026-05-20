@@ -166,8 +166,8 @@ function MainApp() {
   const moveLayer = (id,dir)=>{
     pushHistory(elements);
     setElements(e=>{ const arr=[...e].sort((a,b)=>a.zIndex-b.zIndex); const idx=arr.findIndex(el=>el.id===id);
-      if(dir==="up"&&idx<arr.length-1)[arr[idx].zIndex,arr[idx+1].zIndex]=[arr[idx+1].zIndex,arr[idx].zIndex];
-      else if(dir==="down"&&idx>0)[arr[idx].zIndex,arr[idx-1].zIndex]=[arr[idx-1].zIndex,arr[idx].zIndex];
+      if(dir==="up"&&idx>0)[arr[idx].zIndex,arr[idx-1].zIndex]=[arr[idx-1].zIndex,arr[idx].zIndex];
+      else if(dir==="down"&&idx<arr.length-1)[arr[idx].zIndex,arr[idx+1].zIndex]=[arr[idx+1].zIndex,arr[idx].zIndex];
       return arr; });
   };
 
