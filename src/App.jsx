@@ -64,6 +64,7 @@ async function fetchTabs() {
   } catch { return []; }
 }
 
+// ★テンプレート読み込み
 async function fetchTemplateForTab(tabId) {
   try {
     const res = await fetch(`${RAW_BASE}/templates/${tabId}/template.json?t=${Date.now()}`);
@@ -118,6 +119,7 @@ function MainApp() {
   const [downloadUrl,setDownloadUrl]= useState(null);
   const [generating, setGenerating] = useState(false);
   const [fontsReady, setFontsReady] = useState(false);
+  const [showSample, setShowSample] = useState(true);
 
   const previewRef = useRef(null);
 
@@ -164,13 +166,20 @@ function MainApp() {
   const updateEl  = (id,patch)=>setElements(e=>e.map(el=>el.id===id?{...el,...patch}:el));
   const deleteEl  = (id)=>{ pushHistory(elements); setElements(e=>e.filter(el=>el.id!==id)); setSelected(null); setEditing(null); };
   const moveLayer = (id,dir)=>{
-    pushHistory(elements);
-    setElements(e=>{ const arr=[...e].sort((a,b)=>a.zIndex-b.zIndex); const idx=arr.findIndex(el=>el.id===id);
-      if(dir==="up"&&idx>0)[arr[idx].zIndex,arr[idx-1].zIndex]=[arr[idx-1].zIndex,arr[idx].zIndex];
-      else if(dir==="down"&&idx<arr.length-1)[arr[idx].zIndex,arr[idx+1].zIndex]=[arr[idx+1].zIndex,arr[idx].zIndex];
-      return arr; });
-  };
+  pushHistory(elements);
+  setElements(e=>{
+    const arr=[...e].sort((a,b)=>a.zIndex-b.zIndex);
+    const idx=arr.findIndex(el=>el.id===id);
+    if(dir==="up"&&idx<arr.length-1){
+      const tmp=arr[idx]; arr[idx]=arr[idx+1]; arr[idx+1]=tmp;
+    } else if(dir==="down"&&idx>0){
+      const tmp=arr[idx]; arr[idx]=arr[idx-1]; arr[idx-1]=tmp;
+    }
+    return arr.map((el,i)=>({...el,zIndex:i}));
+  });
+};
 
+  // ★テンプレートを読み込んで新規作成
   const startNew = async () => {
     setElements([]); setSelected(null); setEditing(null); setHistory([]);
     const tmpl = await fetchTemplateForTab(tab.id);
@@ -217,7 +226,7 @@ function MainApp() {
     <div style={{ minHeight:"100vh", background:C.cream, display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"'Noto Sans JP',sans-serif", padding:20 }}>
       <div style={{ textAlign:"center" }}>
         <div style={{ fontSize:48, marginBottom:16 }}>📋</div>
-        <p style={{ fontSize:16, fontWeight:700, color:C.ink, margin:"0 0 8px" }}>テンプレートがありません</p>
+        <p style={{ fontSize:16, fontWeight:700, color:C.ink, margin:"0 0 8px" }}>タブがありません</p>
         <p style={{ fontSize:13, color:C.gray }}>管理者ページでテンプレートを追加してください</p>
       </div>
     </div>
@@ -237,7 +246,7 @@ function MainApp() {
         )}
 
         {screen==="home"    && <HomeScreen tab={tab} tabSaves={tabSaves} onNew={startNew} onLoad={loadWork} onDelete={deleteWork} onRename={renameWork} />}
-        {screen==="preview" && <PreviewScreen tab={tab} elements={elements} setElements={setElements} selected={selected} setSelected={setSelected} editing={editing} setEditing={setEditing} bgImg={bgImg} sampleImg={sampleImg} canvasRef={previewRef} PW={PW} PH={PH} R={R} addText={addText} addImage={addImage} updateEl={updateEl} deleteEl={deleteEl} moveLayer={moveLayer} pushHistory={pushHistory} onGenerate={generate} generating={generating} />}
+        {screen==="preview" && <PreviewScreen tab={tab} elements={elements} setElements={setElements} selected={selected} setSelected={setSelected} editing={editing} setEditing={setEditing} bgImg={bgImg} sampleImg={sampleImg} showSample={showSample} setShowSample={setShowSample} parts={parts} canvasRef={previewRef} PW={PW} PH={PH} R={R} addText={addText} addImage={addImage} addPart={addPart} updateEl={updateEl} deleteEl={deleteEl} moveLayer={moveLayer} pushHistory={pushHistory} onGenerate={generate} generating={generating} />}
         {screen==="done"    && <DoneScreen downloadUrl={downloadUrl} onReset={reset} onBack={()=>setScreen("preview")} />}
       </div>
 
@@ -357,13 +366,15 @@ function HomeScreen({ tab, tabSaves, onNew, onLoad, onDelete, onRename }) {
   );
 }
 
-function PreviewScreen({ tab, elements, setElements, selected, setSelected, editing, setEditing, bgImg, sampleImg, canvasRef, PW, PH, R, addText, addImage, updateEl, deleteEl, moveLayer, pushHistory, onGenerate, generating }) {
+function PreviewScreen({ tab, elements, setElements, selected, setSelected, editing, setEditing, bgImg, sampleImg, showSample, setShowSample, parts, canvasRef, PW, PH, R, addText, addImage, addPart, updateEl, deleteEl, moveLayer, pushHistory, onGenerate, generating }) {
   const dragging    = useRef(null);
   const pinchRef    = useRef({ lastDist:null });
   const imgInputRef = useRef();
+  const [showParts, setShowParts] = useState(false);
 
   const getXY = (cx,cy)=>{ if(!canvasRef.current)return{x:0,y:0}; const rect=canvasRef.current.getBoundingClientRect(); return{x:(cx-rect.left)/R,y:(cy-rect.top)/R}; };
 
+  // ★locked チェック付きドラッグ
   const onMouseDown = (e)=>{
     if(!selected)return;
     const el=elements.find(el=>el.id===selected); if(!el||el.locked)return;
@@ -386,6 +397,7 @@ function PreviewScreen({ tab, elements, setElements, selected, setSelected, edit
   };
   const onTouchMove = (e)=>{
     e.preventDefault();
+    // ★locked チェック付きピンチ
     if(e.touches.length===2&&selected){
       const el=elements.find(el=>el.id===selected); if(el?.locked)return;
       const dx=e.touches[0].clientX-e.touches[1].clientX, dy=e.touches[0].clientY-e.touches[1].clientY;
@@ -402,7 +414,7 @@ function PreviewScreen({ tab, elements, setElements, selected, setSelected, edit
     <div style={{ maxWidth:520, margin:"0 auto", padding:"12px 16px 40px" }}>
       {sampleImg&&(
         <div style={{ marginBottom:12, border:`1px solid ${C.grayL}` }}>
-          <p style={{ margin:0, padding:"6px 12px", fontSize:11, color:C.gray, background:C.white }}>📌 お手本（参考）</p>
+          <p style={{ margin:0, padding:"6px 12px", fontSize:11, color:C.gray, background:C.white }}>📌 サンプルバナー（参考）</p>
           <img src={sampleImg.src} style={{ width:"50%", display:"block" }} />
         </div>
       )}
@@ -423,7 +435,28 @@ function PreviewScreen({ tab, elements, setElements, selected, setSelected, edit
           ＋ 画像
           <input ref={imgInputRef} type="file" accept="image/*" style={{ display:"none" }} onChange={e=>{if(e.target.files[0])addImage(e.target.files[0]);e.target.value="";}} />
         </label>
+        <button onClick={()=>setShowParts(v=>!v)} style={TB(showParts?"#5B21B6":"#7C3AED")}>＋ パーツ{parts.length===0?" (未登録)":""}</button>
       </div>
+
+      {showParts&&(
+        <div style={{ marginTop:10, background:C.white, borderRadius:12, border:`1px solid ${C.grayLL}`, padding:"12px", animation:"fadeUp 0.2s ease" }}>
+          <p style={{ margin:"0 0 10px", fontSize:12, fontWeight:700, color:C.inkS }}>パーツを選んでください（タップで追加）</p>
+          {parts.length===0 ? (
+            <p style={{ fontSize:12, color:C.gray, textAlign:"center", padding:"10px 0" }}>パーツが登録されていません<br/>管理者ページから追加できます</p>
+          ) : (
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:8 }}>
+              {parts.map(name=>(
+                <button key={name} onClick={()=>{ addPart(name); setShowParts(false); }} style={{ background:C.cream, border:`1px solid ${C.grayLL}`, borderRadius:8, padding:6, cursor:"pointer" }}>
+                  <div style={{ background:"repeating-conic-gradient(#ddd 0% 25%,#fff 0% 50%) 0 0/10px 10px", borderRadius:4, marginBottom:4 }}>
+                    <img src={`${RAW_BASE}/stamps/${tab.id}/${name}?t=${Date.now()}`} style={{ width:"100%", height:56, objectFit:"contain", display:"block" }} />
+                  </div>
+                  <p style={{ margin:0, fontSize:9, color:C.gray, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{name.replace(/\.[^.]+$/,"")}</p>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {elements.length>0&&(
         <div style={{ marginTop:12, background:C.white, borderRadius:12, border:`1px solid ${C.grayLL}`, overflow:"hidden" }}>
@@ -436,10 +469,11 @@ function PreviewScreen({ tab, elements, setElements, selected, setSelected, edit
                   <div
                     onClick={()=>{ if(!isLocked){ setSelected(el.id); if(editing!==el.id)setEditing(null); } }}
                     style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 12px", background:selected===el.id?`${C.g1}10`:isLocked?`#F5F5F5`:C.white, cursor:isLocked?"not-allowed":"pointer" }}>
-                    <span style={{ fontSize:16, flexShrink:0 }}>{isLocked?"🔒":el.type==="text"?"✏️":"🖼"}</span>
+                    <span style={{ fontSize:16, flexShrink:0 }}>{isLocked ? "🔒" : el.type==="text"?"✏️":"🖼"}</span>
                     <span style={{ flex:1, fontSize:12, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", color:isLocked?C.gray:selected===el.id?C.g1:C.ink, fontWeight:selected===el.id?700:400 }}>
-                      {el.type==="text"?el.text:"画像"}
+                      {el.type==="text" ? el.text : el.src?.includes("/stamps/") ? "🏷️ "+el.src.split("/stamps/")[1].split("?")[0] : "画像"}
                     </span>
+                    {/* ★固定レイヤーはバッジ表示のみ、編集不可 */}
                     {isLocked ? (
                       <span style={{ fontSize:10, color:C.gray, background:C.grayLL, padding:"2px 8px", borderRadius:10, flexShrink:0 }}>固定</span>
                     ) : (
@@ -454,6 +488,7 @@ function PreviewScreen({ tab, elements, setElements, selected, setSelected, edit
                     )}
                   </div>
 
+                  {/* 回転・サイズスライダー（固定レイヤーは非表示） */}
                   {!isLocked&&selected===el.id&&editing!==el.id&&(
                     <div style={{ padding:"8px 14px 10px", background:`${C.g1}06`, borderTop:`1px solid ${C.grayLL}`, display:"flex", flexDirection:"column", gap:6 }}>
                       <div style={{ display:"flex", alignItems:"center", gap:8 }}>
@@ -462,7 +497,7 @@ function PreviewScreen({ tab, elements, setElements, selected, setSelected, edit
                           onChange={e=>updateEl(el.id,{rotate:Number(e.target.value)})}
                           style={{ flex:1, accentColor:C.g1 }} />
                         <span style={{ fontSize:11, color:C.gray, width:38, textAlign:"right", flexShrink:0 }}>{el.rotate||0}°</span>
-                        <button onClick={()=>updateEl(el.id,{rotate:0})} style={{ padding:"2px 8px", background:"none", border:`1px solid ${C.grayL}`, borderRadius:5, fontSize:10, color:C.gray, cursor:"pointer", flexShrink:0 }}>R</button>
+                        <button onClick={()=>updateEl(el.id,{rotate:0})} style={{ padding:"2px 8px", background:"none", border:`1px solid ${C.grayL}`, borderRadius:5, fontSize:10, color:C.gray, cursor:"pointer", flexShrink:0 }}>リセット</button>
                       </div>
                       <div style={{ display:"flex", alignItems:"center", gap:8 }}>
                         <span style={{ fontSize:11, color:C.gray, flexShrink:0, width:48 }}>⤢ サイズ</span>
@@ -470,7 +505,7 @@ function PreviewScreen({ tab, elements, setElements, selected, setSelected, edit
                           onChange={e=>updateEl(el.id,{scale:Number(e.target.value)})}
                           style={{ flex:1, accentColor:C.g1 }} />
                         <span style={{ fontSize:11, color:C.gray, width:38, textAlign:"right", flexShrink:0 }}>{Math.round((el.scale||1)*100)}%</span>
-                        <button onClick={()=>updateEl(el.id,{scale:1})} style={{ padding:"2px 8px", background:"none", border:`1px solid ${C.grayL}`, borderRadius:5, fontSize:10, color:C.gray, cursor:"pointer", flexShrink:0 }}>R</button>
+                        <button onClick={()=>updateEl(el.id,{scale:1})} style={{ padding:"2px 8px", background:"none", border:`1px solid ${C.grayL}`, borderRadius:5, fontSize:10, color:C.gray, cursor:"pointer", flexShrink:0 }}>リセット</button>
                       </div>
                     </div>
                   )}
@@ -503,7 +538,7 @@ function PreviewScreen({ tab, elements, setElements, selected, setSelected, edit
                           onChange={e=>updateEl(el.id,{rotate:Number(e.target.value)})}
                           style={{ flex:1, accentColor:C.g1 }} />
                         <span style={{ fontSize:11, color:C.gray, width:38, flexShrink:0 }}>{el.rotate||0}°</span>
-                        <button onClick={()=>updateEl(el.id,{rotate:0})} style={{ padding:"2px 8px", background:"none", border:`1px solid ${C.grayL}`, borderRadius:5, fontSize:10, color:C.gray, cursor:"pointer" }}>R</button>
+                        <button onClick={()=>updateEl(el.id,{rotate:0})} style={{ padding:"2px 8px", background:"none", border:`1px solid ${C.grayL}`, borderRadius:5, fontSize:10, color:C.gray, cursor:"pointer" }}>リセット</button>
                       </div>
                       <label style={LS}>エフェクト</label>
                       <div style={{ display:"flex", flexDirection:"column", gap:8, marginBottom:14 }}>
@@ -569,7 +604,9 @@ function drawCanvas(canvas, elements, bgImg, W, H, selectedId, CW, CH) {
   const ctx=canvas.getContext("2d");
   ctx.clearRect(0,0,W,H);
   ctx.save();
-  ctx.beginPath(); ctx.rect(0,0,W,H); ctx.clip();
+  ctx.beginPath();
+  ctx.rect(0,0,W,H);
+  ctx.clip();
   if(bgImg){ ctx.drawImage(bgImg,0,0,W,H); }
   else { const g=ctx.createLinearGradient(0,0,W,0); g.addColorStop(0,"rgb(235,97,0)"); g.addColorStop(1,"rgb(241,141,0)"); ctx.fillStyle=g; ctx.fillRect(0,0,W,H); }
   [...elements].sort((a,b)=>a.zIndex-b.zIndex).forEach(el=>{
