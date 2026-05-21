@@ -553,16 +553,14 @@ function TemplateEditor({ tmpl, onDone, onCancel }) {
 }
 
 function LayerEditor({ bgDataUrl, bgPath, sampleUrl, canvasW, canvasH, elements, setElements, saving, msg, onBack, onSave, saveLabel }) {
-  const [selected,   setSelected]   = useState(null);
-  const [editing,    setEditing]    = useState(null);
-  const [bgImg,      setBgImg]      = useState(null);
-  const [inlineEdit, setInlineEdit] = useState(null);
+  const [selected, setSelected] = useState(null);
+  const [editing,  setEditing]  = useState(null);
+  const [bgImg,    setBgImg]    = useState(null);
 
   const canvasRef   = useRef(null);
   const dragging    = useRef(null);
   const pinchRef    = useRef({ lastDist:null });
   const lastTap     = useRef(0);
-  const lastClick   = useRef(0);
   const imgInputRef = useRef();
 
   const CW = canvasW || 1080;
@@ -593,37 +591,20 @@ function LayerEditor({ bgDataUrl, bgPath, sampleUrl, canvasW, canvasH, elements,
     return{x:(cx-rect.left)/R, y:(cy-rect.top)/R};
   };
 
-  // ★ダブルクリック/ダブルタップでインライン編集
-  const activateInlineEdit = (cx, cy)=>{
-    const{x,y}=getXY(cx,cy);
-    const sorted=[...elements].filter(el=>el&&el.type==="text").sort((a,b)=>b.zIndex-a.zIndex);
-    for(const el of sorted){
-      const dist=Math.sqrt(Math.pow(x-el.x,2)+Math.pow(y-el.y,2));
-      if(dist<200){
-        setSelected(el.id);
-        const fs=(TEXT_SIZES[el.size]||72)*el.scale*R;
-        const lines=el.text.split("\n");
-        const w=Math.max(120, Math.max(...lines.map(l=>l.length))*fs*0.65);
-        const h=Math.max(fs*1.5, lines.length*fs*1.4);
-        setInlineEdit({ id:el.id, x:el.x*R, y:el.y*R, w, h, fs, font:el.font, color:el.color });
-        return true;
-      }
+  // ★ダブルクリックでテキスト編集
+  const onDoubleClick = (e)=>{
+  const{x,y}=getXY(e.clientX,e.clientY);
+  console.log("dblclick", x, y, elements.map(el=>({id:el.id,type:el.type,x:el.x,y:el.y})));
+  const sorted=[...elements].filter(el=>el&&el.type==="text"&&!el.locked).sort((a,b)=>b.zIndex-a.zIndex);
+  for(const el of sorted){
+    const dist=Math.sqrt(Math.pow(x-el.x,2)+Math.pow(y-el.y,2));
+    if(dist<300/R){
+      setSelected(el.id); setEditing(el.id); return;
     }
-    return false;
-  };
-
-  const onCanvasClick = (e)=>{
-    const now=Date.now();
-    if(now-lastClick.current<400){
-      activateInlineEdit(e.clientX, e.clientY);
-      lastClick.current=0;
-    } else {
-      lastClick.current=now;
-    }
-  };
+  }
+};
 
   const onMouseDown = (e)=>{
-    if(inlineEdit)return;
     if(!selected)return;
     const el=elements.find(el=>el.id===selected); if(!el)return;
     const{x,y}=getXY(e.clientX,e.clientY);
@@ -643,12 +624,10 @@ function LayerEditor({ bgDataUrl, bgPath, sampleUrl, canvasW, canvasH, elements,
     } else {
       const now=Date.now();
       if(now-lastTap.current<300){
-        activateInlineEdit(e.touches[0].clientX, e.touches[0].clientY);
-        lastTap.current=0;
-      } else {
-        lastTap.current=now;
-        onMouseDown({clientX:e.touches[0].clientX,clientY:e.touches[0].clientY});
+        onDoubleClick({clientX:e.touches[0].clientX,clientY:e.touches[0].clientY});
       }
+      lastTap.current=now;
+      onMouseDown({clientX:e.touches[0].clientX,clientY:e.touches[0].clientY});
     }
   };
   const onTouchMove = (e)=>{
@@ -666,7 +645,7 @@ function LayerEditor({ bgDataUrl, bgPath, sampleUrl, canvasW, canvasH, elements,
   const onTouchEnd = ()=>{ pinchRef.current.lastDist=null; onMouseUp(); };
 
   const updateEl = (id,patch)=>setElements(e=>e.map(el=>el.id===id?{...el,...patch}:el));
-  const deleteEl = (id)=>{ setElements(e=>e.filter(el=>el.id!==id)); if(selected===id){setSelected(null);setEditing(null);} };
+  const deleteEl = (id)=>{ setElements(e=>e.filter(el=>el.id!==id)); if(selected===id){setSelected(null);setEditing(null);} if(inlineEdit?.id===id)setInlineEdit(null); };
   const duplicateEl = (id)=>{
     const el=elements.find(el=>el.id===id); if(!el)return;
     const newEl={...JSON.parse(JSON.stringify(el)), id:uid(), x:el.x+30, y:el.y+30, zIndex:elements.length};
@@ -718,50 +697,12 @@ function LayerEditor({ bgDataUrl, bgPath, sampleUrl, canvasW, canvasH, elements,
       )}
 
       <div style={{ display:"flex", justifyContent:"center", marginBottom:12 }}>
-        <div style={{ position:"relative", border:`2px solid ${selected?C.g1:C.grayL}`, borderRadius:6, overflow:"hidden", boxShadow:`0 6px 24px rgba(0,0,0,0.15)` }}>
+        <div style={{ border:`2px solid ${selected?C.g1:C.grayL}`, borderRadius:6, overflow:"hidden", boxShadow:`0 6px 24px rgba(0,0,0,0.15)` }}>
           <canvas ref={canvasRef} width={PW} height={PH}
             onMouseDown={onMouseDown} onMouseMove={onMouseMove} onMouseUp={onMouseUp} onMouseLeave={onMouseUp}
-            onClick={onCanvasClick}
+            onDoubleClick={onDoubleClick}
             onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
             style={{ display:"block", cursor:selected?"grab":"default", touchAction:"none", userSelect:"none" }} />
-          {/* ★インライン編集オーバーレイ */}
-          {inlineEdit&&(()=>{
-            const el=elements.find(el=>el.id===inlineEdit.id);
-            if(!el)return null;
-            const font=FONTS.find(f=>f.id===el.font)||FONTS[0];
-            return (
-              <textarea
-                autoFocus
-                value={el.text}
-                onChange={e=>updateEl(el.id,{text:e.target.value})}
-                onBlur={()=>setInlineEdit(null)}
-                onKeyDown={e=>{ if(e.key==="Escape")setInlineEdit(null); }}
-                style={{
-                  position:"absolute",
-                  left: Math.max(0, inlineEdit.x - inlineEdit.w/2),
-                  top:  Math.max(0, inlineEdit.y - inlineEdit.h/2),
-                  width: Math.min(inlineEdit.w, PW),
-                  minHeight: inlineEdit.h,
-                  fontSize: inlineEdit.fs,
-                  fontFamily: font.family+",sans-serif",
-                  fontWeight: font.weight,
-                  color: el.color,
-                  background: "rgba(0,0,0,0.5)",
-                  border: `2px solid ${C.g1}`,
-                  borderRadius: 4,
-                  outline: "none",
-                  resize: "none",
-                  textAlign: "center",
-                  padding: "4px",
-                  lineHeight: 1.3,
-                  boxSizing: "border-box",
-                  zIndex: 10,
-                  caretColor: C.white,
-                  overflow: "hidden",
-                }}
-              />
-            );
-          })()}
         </div>
       </div>
       <p style={{ textAlign:"center", fontSize:10, color:C.gray, marginBottom:12 }}>
