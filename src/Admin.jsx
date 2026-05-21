@@ -553,9 +553,10 @@ function TemplateEditor({ tmpl, onDone, onCancel }) {
 }
 
 function LayerEditor({ bgDataUrl, bgPath, sampleUrl, canvasW, canvasH, elements, setElements, saving, msg, onBack, onSave, saveLabel }) {
-  const [selected, setSelected] = useState(null);
-  const [editing,  setEditing]  = useState(null);
-  const [bgImg,    setBgImg]    = useState(null);
+  const [selected,   setSelected]   = useState(null);
+  const [editing,    setEditing]    = useState(null);
+  const [bgImg,      setBgImg]      = useState(null);
+  const [inlineEdit, setInlineEdit] = useState(null);
 
   const canvasRef   = useRef(null);
   const dragging    = useRef(null);
@@ -591,13 +592,22 @@ function LayerEditor({ bgDataUrl, bgPath, sampleUrl, canvasW, canvasH, elements,
     return{x:(cx-rect.left)/R, y:(cy-rect.top)/R};
   };
 
-  // ★ダブルクリックでテキスト編集
+  // ★ダブルクリックでインライン編集オーバーレイ
   const onDoubleClick = (e)=>{
     const{x,y}=getXY(e.clientX,e.clientY);
-    const sorted=[...elements].sort((a,b)=>b.zIndex-a.zIndex);
+    const sorted=[...elements].filter(el=>el&&el.type==="text").sort((a,b)=>b.zIndex-a.zIndex);
     for(const el of sorted){
-      if(el.type!=="text")continue;
-      const fs=(TEXT_SIZES[el.size]||72)*el.scale;
+      const dist=Math.sqrt(Math.pow(x-el.x,2)+Math.pow(y-el.y,2));
+      if(dist<300/R){
+        setSelected(el.id);
+        const fs=(TEXT_SIZES[el.size]||72)*el.scale*R;
+        const w=Math.max(200, Math.max(...el.text.split("\n").map(l=>l.length))*fs*0.6);
+        const h=Math.max(60, el.text.split("\n").length*fs*1.4);
+        setInlineEdit({ id:el.id, x:el.x*R, y:el.y*R, w, h });
+        return;
+      }
+    }
+  };
       const hw=Math.max(...el.text.split("\n").map(l=>l.length))*fs*0.55;
       const hh=el.text.split("\n").length*fs*1.3/2;
       if(Math.abs(x-el.x)<hw&&Math.abs(y-el.y)<hh){
@@ -699,12 +709,50 @@ function LayerEditor({ bgDataUrl, bgPath, sampleUrl, canvasW, canvasH, elements,
       )}
 
       <div style={{ display:"flex", justifyContent:"center", marginBottom:12 }}>
-        <div style={{ border:`2px solid ${selected?C.g1:C.grayL}`, borderRadius:6, overflow:"hidden", boxShadow:`0 6px 24px rgba(0,0,0,0.15)` }}>
+        <div style={{ position:"relative", border:`2px solid ${selected?C.g1:C.grayL}`, borderRadius:6, overflow:"hidden", boxShadow:`0 6px 24px rgba(0,0,0,0.15)` }}>
           <canvas ref={canvasRef} width={PW} height={PH}
             onMouseDown={onMouseDown} onMouseMove={onMouseMove} onMouseUp={onMouseUp} onMouseLeave={onMouseUp}
             onDoubleClick={onDoubleClick}
             onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
             style={{ display:"block", cursor:selected?"grab":"default", touchAction:"none", userSelect:"none" }} />
+          {/* ★インライン編集オーバーレイ */}
+          {inlineEdit&&(()=>{
+            const el=elements.find(el=>el.id===inlineEdit.id);
+            if(!el)return null;
+            const fs=(TEXT_SIZES[el.size]||72)*el.scale*R;
+            const font=FONTS.find(f=>f.id===el.font)||FONTS[0];
+            return (
+              <textarea
+                autoFocus
+                value={el.text}
+                onChange={e=>updateEl(el.id,{text:e.target.value})}
+                onBlur={()=>setInlineEdit(null)}
+                onKeyDown={e=>{ if(e.key==="Escape")setInlineEdit(null); }}
+                style={{
+                  position:"absolute",
+                  left: inlineEdit.x - inlineEdit.w/2,
+                  top:  inlineEdit.y - inlineEdit.h/2,
+                  width: inlineEdit.w,
+                  minHeight: inlineEdit.h,
+                  fontSize: fs,
+                  fontFamily: font.family+",sans-serif",
+                  fontWeight: font.weight,
+                  color: el.color,
+                  background: "rgba(0,0,0,0.35)",
+                  border: `2px solid ${C.g1}`,
+                  borderRadius: 4,
+                  outline: "none",
+                  resize: "none",
+                  textAlign: "center",
+                  padding: "4px",
+                  lineHeight: 1.3,
+                  boxSizing: "border-box",
+                  zIndex: 10,
+                  caretColor: C.white,
+                }}
+              />
+            );
+          })()}
         </div>
       </div>
       <p style={{ textAlign:"center", fontSize:10, color:C.gray, marginBottom:12 }}>
