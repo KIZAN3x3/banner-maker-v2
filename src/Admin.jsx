@@ -89,7 +89,7 @@ function toBase64(file) {
         const canvas=document.createElement("canvas");
         canvas.width=w; canvas.height=h;
         canvas.getContext("2d").drawImage(img,0,0,w,h);
-        res(canvas.toDataURL("image/png",0.82).split(",")[1]);
+        res(canvas.toDataURL("image/png").split(",")[1]);
       };
       img.onerror=rej;
       img.src=ev.target.result;
@@ -677,7 +677,7 @@ function LayerEditor({ bgDataUrl, bgPath, sampleUrl, canvasW, canvasH, elements,
       const canvas=document.createElement("canvas");
       canvas.width=w; canvas.height=h;
       canvas.getContext("2d").drawImage(img,0,0,w,h);
-      const src=canvas.toDataURL("image/png",0.82);
+      const src=canvas.toDataURL("image/png");
       const el={ id:uid(), type:"image", src, naturalW:w, naturalH:h, x:CW/2, y:CH/2, scale:0.3, rotate:0, zIndex:elements.length, locked:false };
       setElements(e=>[...e,el]); setSelected(el.id);
     };
