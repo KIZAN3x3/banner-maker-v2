@@ -596,11 +596,9 @@ function LayerEditor({ bgDataUrl, bgPath, sampleUrl, canvasW, canvasH, elements,
   const{x,y}=getXY(e.clientX,e.clientY);
   const sorted=[...elements].sort((a,b)=>b.zIndex-a.zIndex);
   for(const el of sorted){
-    if(el.type!=="text")continue;
-    const fs=(TEXT_SIZES[el.size]||72)*el.scale;
-    const hw=Math.max(...el.text.split("\n").map(l=>l.length))*fs*0.55;
-    const hh=el.text.split("\n").length*fs*1.3/2;
-    if(Math.abs(x-el.x)<hw&&Math.abs(y-el.y)<hh){
+    if(el.locked||el.type!=="text")continue;
+    const dist=Math.sqrt(Math.pow(x-el.x,2)+Math.pow(y-el.y,2));
+    if(dist<300/R){
       setSelected(el.id); setEditing(el.id); return;
     }
   }
