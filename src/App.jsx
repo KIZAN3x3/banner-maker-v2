@@ -196,13 +196,21 @@ function MainApp() {
   };
 
   const startNew = async () => {
-    setElements([]); setSelected(null); setEditing(null); setHistory([]);
-    const tmpl = await fetchTemplateForTab(tab.id);
-    if (tmpl && Array.isArray(tmpl.elements) && tmpl.elements.length > 0) {
-      setElements(tmpl.elements);
-    }
-    setScreen("preview");
-  };
+  setElements([]); setSelected(null); setEditing(null); setHistory([]);
+  const tmpl = await fetchTemplateForTab(tab.id);
+  if (tmpl && Array.isArray(tmpl.elements) && tmpl.elements.length > 0) {
+    // 画像を事前にキャッシュ
+    tmpl.elements.forEach(el=>{
+      if(el.type==="image"&&el.src){
+        const img=new Image(); img.crossOrigin="anonymous";
+        img.onload=()=>{ imgCache[el.src]=img; };
+        img.src=el.src;
+      }
+    });
+    setElements(tmpl.elements);
+  }
+  setScreen("preview");
+};
 
   const saveWork = ()=>{
     const key=`${activeTab}_${Date.now()}`;
