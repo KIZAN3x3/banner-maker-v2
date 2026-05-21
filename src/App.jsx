@@ -185,6 +185,14 @@ function MainApp() {
     setEditing(null);
   };
 
+  const duplicateEl = (id)=>{
+    const el=elements.find(el=>el.id===id); if(!el)return;
+    const newEl={...JSON.parse(JSON.stringify(el)), id:uid(), x:el.x+30, y:el.y+30, zIndex:elements.length};
+    pushHistory(elements);
+    setElements(e=>[...e,newEl]);
+    setSelected(newEl.id);
+  };
+
   const moveLayer = (id,dir)=>{
     pushHistory(elements);
     setElements(e=>{
@@ -273,7 +281,7 @@ function MainApp() {
         )}
 
         {screen==="home"    && <HomeScreen tab={tab} tabSaves={tabSaves} onNew={startNew} onLoad={loadWork} onDelete={deleteWork} onRename={renameWork} />}
-        {screen==="preview" && <PreviewScreen tab={tab} elements={elements} setElements={setElements} selected={selected} setSelected={setSelected} editing={editing} setEditing={setEditing} bgImg={bgImg} sampleImg={sampleImg} canvasRef={previewRef} PW={PW} PH={PH} R={R} addText={addText} addImage={addImage} updateEl={updateEl} deleteEl={deleteEl} moveLayer={moveLayer} pushHistory={pushHistory} onGenerate={generate} generating={generating} />}
+        {screen==="preview" && <PreviewScreen tab={tab} elements={elements} setElements={setElements} selected={selected} setSelected={setSelected} editing={editing} setEditing={setEditing} bgImg={bgImg} sampleImg={sampleImg} canvasRef={previewRef} PW={PW} PH={PH} R={R} addText={addText} addImage={addImage} updateEl={updateEl} deleteEl={deleteEl} duplicateEl={duplicateEl} moveLayer={moveLayer} pushHistory={pushHistory} onGenerate={generate} generating={generating} />}
         {screen==="done"    && <DoneScreen downloadUrl={downloadUrl} onReset={reset} onBack={()=>setScreen("preview")} />}
       </div>
 
@@ -393,7 +401,7 @@ function HomeScreen({ tab, tabSaves, onNew, onLoad, onDelete, onRename }) {
   );
 }
 
-function PreviewScreen({ tab, elements, setElements, selected, setSelected, editing, setEditing, bgImg, sampleImg, canvasRef, PW, PH, R, addText, addImage, updateEl, deleteEl, moveLayer, pushHistory, onGenerate, generating }) {
+function PreviewScreen({ tab, elements, setElements, selected, setSelected, editing, setEditing, bgImg, sampleImg, canvasRef, PW, PH, R, addText, addImage, updateEl, deleteEl, duplicateEl, moveLayer, pushHistory, onGenerate, generating }) {
   const dragging    = useRef(null);
   const pinchRef    = useRef({ lastDist:null });
   const imgInputRef = useRef();
@@ -483,6 +491,7 @@ function PreviewScreen({ tab, elements, setElements, selected, setSelected, edit
                         {selected===el.id&&el.type==="text"&&editing!==el.id&&(
                           <button onClick={e=>{e.stopPropagation();setEditing(el.id);}} style={{ padding:"4px 10px", background:C.g1, border:"none", borderRadius:6, color:C.white, fontSize:11, fontWeight:700, cursor:"pointer" }}>編集</button>
                         )}
+                        <button onClick={e=>{e.stopPropagation();duplicateEl(el.id);}} style={SB("#4A90D9")}>複製</button>
                         <button onClick={e=>{e.stopPropagation();moveLayer(el.id,"up");}}   style={SB()}>↑</button>
                         <button onClick={e=>{e.stopPropagation();moveLayer(el.id,"down");}} style={SB()}>↓</button>
                         <button onClick={e=>{e.stopPropagation();if(confirm("削除？"))deleteEl(el.id);}} style={SB("#CC3333")}>✕</button>
