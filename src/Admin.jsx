@@ -73,8 +73,30 @@ async function ghGetContent(path) {
   return res.json();
 }
 
+// ★画像自動圧縮付きtoBase64
 function toBase64(file) {
-  return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result.split(",")[1]); r.onerror=rej; r.readAsDataURL(file); });
+  return new Promise((res,rej)=>{
+    const r=new FileReader();
+    r.onload=ev=>{
+      const img=new Image();
+      img.onload=()=>{
+        const MAX=1920;
+        let w=img.width, h=img.height;
+        if(w>MAX||h>MAX){
+          if(w>h){ h=Math.round(h*MAX/w); w=MAX; }
+          else { w=Math.round(w*MAX/h); h=MAX; }
+        }
+        const canvas=document.createElement("canvas");
+        canvas.width=w; canvas.height=h;
+        canvas.getContext("2d").drawImage(img,0,0,w,h);
+        res(canvas.toDataURL("image/jpeg",0.82).split(",")[1]);
+      };
+      img.onerror=rej;
+      img.src=ev.target.result;
+    };
+    r.onerror=rej;
+    r.readAsDataURL(file);
+  });
 }
 
 function jsonToB64(obj) {
@@ -206,6 +228,8 @@ function TemplateAdmin() {
   const [mode,      setMode]      = useState("list");
   const [editTarget,setEditTarget]= useState(null);
   const [loadErr,   setLoadErr]   = useState("");
+  const [reordering,setReordering]= useState(false);
+  const [saveMsg,   setSaveMsg]   = useState("");
 
   useEffect(()=>{ reload(); },[]);
 
@@ -213,6 +237,27 @@ function TemplateAdmin() {
     setLoadErr("");
     try { setTemplates(await loadTemplatesFromGH()); }
     catch(e) { setLoadErr("読み込みエラー: "+e.message); setTemplates([]); }
+  };
+
+  // ★テンプレート並び替え
+  const moveTemplate = (idx, dir) => {
+    setTemplates(prev=>{
+      const arr=[...prev];
+      if(dir==="up"&&idx>0){ const tmp=arr[idx]; arr[idx]=arr[idx-1]; arr[idx-1]=tmp; }
+      else if(dir==="down"&&idx<arr.length-1){ const tmp=arr[idx]; arr[idx]=arr[idx+1]; arr[idx+1]=tmp; }
+      return arr;
+    });
+  };
+
+  const saveOrder = async () => {
+    setReordering(true); setSaveMsg("保存中...");
+    try {
+      await ghPut("public/tabs.json", jsonToB64(templates), "Reorder templates");
+      await triggerDeploy();
+      setSaveMsg("✅ 順番を保存しました！");
+    } catch(e) { setSaveMsg("エラー: "+e.message); }
+    setReordering(false);
+    setTimeout(()=>setSaveMsg(""), 3000);
   };
 
   const handleDelete = async (tmpl) => {
@@ -261,6 +306,7 @@ function TemplateAdmin() {
           ＋ テンプレを追加
         </button>
       </div>
+
       {templates.length===0 ? (
         <div style={{ textAlign:"center", padding:"60px 0", color:C.gray }}>
           <div style={{ fontSize:48, marginBottom:12 }}>📋</div>
@@ -268,29 +314,44 @@ function TemplateAdmin() {
           <p style={{ fontSize:12 }}>「テンプレを追加」から作成してください</p>
         </div>
       ) : (
-        <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
-          {templates.map(tmpl=>(
-            <div key={tmpl.id} style={{ background:C.white, borderRadius:14, border:`1px solid ${C.grayLL}`, padding:"14px 16px", display:"flex", alignItems:"center", gap:12 }}>
-              <img src={`${RAW_BASE}${tmpl.sample}?t=${tmpl.id}`} alt=""
-                onError={e=>e.target.style.visibility="hidden"}
-                style={{ width:44, height:60, objectFit:"cover", borderRadius:8, border:`1px solid ${C.grayLL}`, flexShrink:0, background:C.grayLL }} />
-              <div style={{ flex:1, minWidth:0 }}>
-                <p style={{ margin:0, fontSize:15, fontWeight:700, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{tmpl.label}</p>
-                <p style={{ margin:"3px 0 0", fontSize:11, color:C.gray }}>
-                  {SNS_SIZES.find(s=>s.w===tmpl.w&&s.h===tmpl.h)?.label||"カスタム"}　{tmpl.w}×{tmpl.h}px
-                </p>
+        <>
+          <div style={{ display:"flex", flexDirection:"column", gap:10, marginBottom:16 }}>
+            {templates.map((tmpl,idx)=>(
+              <div key={tmpl.id} style={{ background:C.white, borderRadius:14, border:`1px solid ${C.grayLL}`, padding:"14px 16px", display:"flex", alignItems:"center", gap:12 }}>
+                <img src={`${RAW_BASE}${tmpl.sample}?t=${tmpl.id}`} alt=""
+                  onError={e=>e.target.style.visibility="hidden"}
+                  style={{ width:44, height:60, objectFit:"cover", borderRadius:8, border:`1px solid ${C.grayLL}`, flexShrink:0, background:C.grayLL }} />
+                <div style={{ flex:1, minWidth:0 }}>
+                  <p style={{ margin:0, fontSize:15, fontWeight:700, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{tmpl.label}</p>
+                  <p style={{ margin:"3px 0 0", fontSize:11, color:C.gray }}>
+                    {SNS_SIZES.find(s=>s.w===tmpl.w&&s.h===tmpl.h)?.label||"カスタム"}　{tmpl.w}×{tmpl.h}px
+                  </p>
+                </div>
+                {/* ★並び替えボタン */}
+                <button onClick={()=>moveTemplate(idx,"up")} disabled={idx===0}
+                  style={{ padding:"5px 9px", background:C.cream, border:`1px solid ${C.grayL}`, borderRadius:7, color:idx===0?C.grayL:C.ink, fontSize:12, cursor:idx===0?"default":"pointer", flexShrink:0 }}>↑</button>
+                <button onClick={()=>moveTemplate(idx,"down")} disabled={idx===templates.length-1}
+                  style={{ padding:"5px 9px", background:C.cream, border:`1px solid ${C.grayL}`, borderRadius:7, color:idx===templates.length-1?C.grayL:C.ink, fontSize:12, cursor:idx===templates.length-1?"default":"pointer", flexShrink:0 }}>↓</button>
+                <button onClick={()=>{ setEditTarget(tmpl); setMode("edit"); }}
+                  style={{ padding:"7px 14px", background:C.cream, border:`1px solid ${C.grayL}`, borderRadius:8, color:C.ink, fontSize:12, fontWeight:700, cursor:"pointer", flexShrink:0 }}>
+                  編集
+                </button>
+                <button onClick={()=>handleDelete(tmpl)}
+                  style={{ padding:"7px 12px", background:"none", border:`1px solid ${C.red}`, borderRadius:8, color:C.red, fontSize:12, cursor:"pointer", flexShrink:0 }}>
+                  削除
+                </button>
               </div>
-              <button onClick={()=>{ setEditTarget(tmpl); setMode("edit"); }}
-                style={{ padding:"7px 14px", background:C.cream, border:`1px solid ${C.grayL}`, borderRadius:8, color:C.ink, fontSize:12, fontWeight:700, cursor:"pointer", flexShrink:0 }}>
-                編集
-              </button>
-              <button onClick={()=>handleDelete(tmpl)}
-                style={{ padding:"7px 12px", background:"none", border:`1px solid ${C.red}`, borderRadius:8, color:C.red, fontSize:12, cursor:"pointer", flexShrink:0 }}>
-                削除
-              </button>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+          {/* ★順番保存ボタン */}
+          <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+            <button onClick={saveOrder} disabled={reordering}
+              style={{ padding:"10px 20px", background:reordering?C.grayL:`linear-gradient(135deg,${C.g1},${C.g2})`, border:"none", borderRadius:10, color:C.white, fontSize:13, fontWeight:700, cursor:reordering?"not-allowed":"pointer", display:"flex", alignItems:"center", gap:8 }}>
+              {reordering?<><Spinner size={14} color={C.white}/>保存中...</>:"✦ 並び順を保存する"}
+            </button>
+            {saveMsg&&<span style={{ fontSize:12, color:saveMsg.startsWith("✅")?C.green:C.red }}>{saveMsg}</span>}
+          </div>
+        </>
       )}
     </div>
   );
@@ -499,6 +560,7 @@ function LayerEditor({ bgDataUrl, bgPath, sampleUrl, canvasW, canvasH, elements,
   const canvasRef   = useRef(null);
   const dragging    = useRef(null);
   const pinchRef    = useRef({ lastDist:null });
+  const lastTap     = useRef(0);
   const imgInputRef = useRef();
 
   const CW = canvasW || 1080;
@@ -529,6 +591,21 @@ function LayerEditor({ bgDataUrl, bgPath, sampleUrl, canvasW, canvasH, elements,
     return{x:(cx-rect.left)/R, y:(cy-rect.top)/R};
   };
 
+  // ★ダブルクリックでテキスト編集
+  const onDoubleClick = (e)=>{
+    const{x,y}=getXY(e.clientX,e.clientY);
+    const sorted=[...elements].sort((a,b)=>b.zIndex-a.zIndex);
+    for(const el of sorted){
+      if(el.type!=="text")continue;
+      const fs=(TEXT_SIZES[el.size]||72)*el.scale;
+      const hw=Math.max(...el.text.split("\n").map(l=>l.length))*fs*0.55;
+      const hh=el.text.split("\n").length*fs*1.3/2;
+      if(Math.abs(x-el.x)<hw&&Math.abs(y-el.y)<hh){
+        setSelected(el.id); setEditing(el.id); return;
+      }
+    }
+  };
+
   const onMouseDown = (e)=>{
     if(!selected)return;
     const el=elements.find(el=>el.id===selected); if(!el)return;
@@ -546,7 +623,14 @@ function LayerEditor({ bgDataUrl, bgPath, sampleUrl, canvasW, canvasH, elements,
     if(e.touches.length===2){
       const dx=e.touches[0].clientX-e.touches[1].clientX, dy=e.touches[0].clientY-e.touches[1].clientY;
       pinchRef.current.lastDist=Math.sqrt(dx*dx+dy*dy);
-    } else onMouseDown({clientX:e.touches[0].clientX,clientY:e.touches[0].clientY});
+    } else {
+      const now=Date.now();
+      if(now-lastTap.current<300){
+        onDoubleClick({clientX:e.touches[0].clientX,clientY:e.touches[0].clientY});
+      }
+      lastTap.current=now;
+      onMouseDown({clientX:e.touches[0].clientX,clientY:e.touches[0].clientY});
+    }
   };
   const onTouchMove = (e)=>{
     e.preventDefault();
@@ -602,7 +686,7 @@ function LayerEditor({ bgDataUrl, bgPath, sampleUrl, canvasW, canvasH, elements,
   return (
     <div style={{ animation:"fadeUp 0.2s ease" }}>
       <p style={{ margin:"0 0 10px", fontSize:12, color:C.gray, textAlign:"center" }}>
-        ドラッグで移動　ピンチで拡縮　🔒固定にするとユーザーが操作できません
+        ドラッグで移動　ピンチで拡縮　ダブルクリックでテキスト編集　🔒固定にするとユーザーが操作できません
       </p>
 
       {sampleUrl&&(
@@ -618,6 +702,7 @@ function LayerEditor({ bgDataUrl, bgPath, sampleUrl, canvasW, canvasH, elements,
         <div style={{ border:`2px solid ${selected?C.g1:C.grayL}`, borderRadius:6, overflow:"hidden", boxShadow:`0 6px 24px rgba(0,0,0,0.15)` }}>
           <canvas ref={canvasRef} width={PW} height={PH}
             onMouseDown={onMouseDown} onMouseMove={onMouseMove} onMouseUp={onMouseUp} onMouseLeave={onMouseUp}
+            onDoubleClick={onDoubleClick}
             onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
             style={{ display:"block", cursor:selected?"grab":"default", touchAction:"none", userSelect:"none" }} />
         </div>
@@ -669,7 +754,6 @@ function LayerEditor({ bgDataUrl, bgPath, sampleUrl, canvasW, canvasH, elements,
                   <button onClick={e=>{e.stopPropagation();if(confirm("削除？"))deleteEl(el.id);}} style={SB(C.red)}>✕</button>
                 </div>
 
-                {/* スライダー：選択中は常に表示 */}
                 {isSel&&(
                   <div style={{ padding:"8px 14px 10px", background:`${C.g1}06`, borderTop:`1px solid ${C.grayLL}`, display:"flex", flexDirection:"column", gap:6 }}>
                     <SliderRow label="🔄 回転" min={-180} max={180} value={el.rotate||0} onChange={v=>updateEl(el.id,{rotate:v})} unit="°" onReset={()=>updateEl(el.id,{rotate:0})} />

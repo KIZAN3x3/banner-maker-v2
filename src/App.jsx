@@ -150,7 +150,8 @@ function MainApp() {
     drawCanvas(previewRef.current,elements,bgImg,PW,PH,selected,CW_,CH_);
   },[screen,elements,bgImg,fontsReady,PW,PH,selected,CW_,CH_]);
 
-  const pushHistory = useCallback((els)=>{ setHistory(h=>[...h.slice(-19),JSON.parse(JSON.stringify(els))]); },[]);
+  // ★Undo履歴を49に増加
+  const pushHistory = useCallback((els)=>{ setHistory(h=>[...h.slice(-49),JSON.parse(JSON.stringify(els))]); },[]);
   const undo = ()=>{ if(!history.length)return; setElements(history[history.length-1]); setHistory(h=>h.slice(0,-1)); };
 
   const addText = ()=>{
@@ -404,9 +405,24 @@ function HomeScreen({ tab, tabSaves, onNew, onLoad, onDelete, onRename }) {
 function PreviewScreen({ tab, elements, setElements, selected, setSelected, editing, setEditing, bgImg, sampleImg, canvasRef, PW, PH, R, addText, addImage, updateEl, deleteEl, duplicateEl, moveLayer, pushHistory, onGenerate, generating }) {
   const dragging    = useRef(null);
   const pinchRef    = useRef({ lastDist:null });
+  const lastTap     = useRef(0);
   const imgInputRef = useRef();
 
   const getXY = (cx,cy)=>{ if(!canvasRef.current)return{x:0,y:0}; const rect=canvasRef.current.getBoundingClientRect(); return{x:(cx-rect.left)/R,y:(cy-rect.top)/R}; };
+
+  // ★ダブルクリックでテキスト編集
+  const onDoubleClick = (e)=>{
+    const{x,y}=getXY(e.clientX,e.clientY);
+    const sorted=[...elements].sort((a,b)=>b.zIndex-a.zIndex);
+    for(const el of sorted){
+      if(el.locked||el.type!=="text")continue;
+      const hw=getElHalfW(el)*el.scale*R;
+      const hh=getElHalfH(el)*el.scale*R;
+      if(Math.abs(x-el.x)<hw/R&&Math.abs(y-el.y)<hh/R){
+        setSelected(el.id); setEditing(el.id); return;
+      }
+    }
+  };
 
   const onMouseDown = (e)=>{
     if(!selected)return;
@@ -426,7 +442,15 @@ function PreviewScreen({ tab, elements, setElements, selected, setSelected, edit
     if(e.touches.length===2){
       const dx=e.touches[0].clientX-e.touches[1].clientX, dy=e.touches[0].clientY-e.touches[1].clientY;
       pinchRef.current.lastDist=Math.sqrt(dx*dx+dy*dy);
-    } else onMouseDown({clientX:e.touches[0].clientX,clientY:e.touches[0].clientY});
+    } else {
+      // ★ダブルタップ検出
+      const now=Date.now();
+      if(now-lastTap.current<300){
+        onDoubleClick({clientX:e.touches[0].clientX,clientY:e.touches[0].clientY});
+      }
+      lastTap.current=now;
+      onMouseDown({clientX:e.touches[0].clientX,clientY:e.touches[0].clientY});
+    }
   };
   const onTouchMove = (e)=>{
     e.preventDefault();
@@ -454,11 +478,12 @@ function PreviewScreen({ tab, elements, setElements, selected, setSelected, edit
       <div style={{ overflow:"hidden", border:`2px solid ${selected?C.g1:C.grayL}`, boxShadow:`0 8px 32px ${C.g1}20`, transition:"border-color 0.2s" }}>
         <canvas ref={canvasRef} width={PW} height={PH}
           onMouseDown={onMouseDown} onMouseMove={onMouseMove} onMouseUp={onMouseUp} onMouseLeave={onMouseUp}
+          onDoubleClick={onDoubleClick}
           onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
           style={{ display:"block", cursor:selected?"grab":"default", touchAction:"none", userSelect:"none" }} />
       </div>
       <p style={{ textAlign:"center", fontSize:10, color:C.gray, marginTop:5 }}>
-        {selected?"ドラッグで移動　ピンチで拡縮":"↓ レイヤーで要素を選んでください"}
+        {selected?"ドラッグで移動　ピンチで拡縮　ダブルタップでテキスト編集":"↓ レイヤーで要素を選んでください"}
       </p>
 
       <div style={{ display:"flex", gap:8, marginTop:12, flexWrap:"wrap" }}>
