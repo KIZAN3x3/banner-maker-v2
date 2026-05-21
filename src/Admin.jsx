@@ -35,7 +35,6 @@ const SNS_SIZES = [
 const uid = () => Math.random().toString(36).slice(2,9);
 const imgCache = {};
 
-// ── GitHub API ────────────────────────────────────────────
 async function ghPut(path, base64, message) {
   const res = await fetch(`/api/github?path=${encodeURIComponent(path)}`, {
     method: "PUT",
@@ -103,7 +102,6 @@ async function triggerDeploy() {
   try { await fetch(VERCEL_DEPLOY_HOOK, { method:"POST" }); } catch {}
 }
 
-// ── Canvas描画 ────────────────────────────────────────────
 function drawCanvas(canvas, elements, bgImg, W, H, selectedId, CW, CH) {
   if(!canvas)return;
   const r=W/CW;
@@ -164,7 +162,6 @@ function drawImageEl(ctx, el, r, isSelected) {
   ctx.restore();
 }
 
-// ── ログイン画面 ──────────────────────────────────────────
 export default function Admin() {
   const [authed, setAuthed] = useState(()=>sessionStorage.getItem("bm_admin_auth")==="1");
   const [pw,     setPw]     = useState("");
@@ -204,10 +201,9 @@ export default function Admin() {
   );
 }
 
-// ── テンプレート管理メイン ────────────────────────────────
 function TemplateAdmin() {
   const [templates, setTemplates] = useState(null);
-  const [mode,      setMode]      = useState("list"); // "list" | "create" | "edit"
+  const [mode,      setMode]      = useState("list");
   const [editTarget,setEditTarget]= useState(null);
   const [loadErr,   setLoadErr]   = useState("");
 
@@ -255,11 +251,9 @@ function TemplateAdmin() {
     />
   );
 
-  // 一覧
   return (
     <div style={{ maxWidth:640, margin:"0 auto", padding:"24px 16px" }}>
       {loadErr&&<p style={{ color:C.red, fontSize:12, marginBottom:12, background:"#FEF2F2", padding:"10px 14px", borderRadius:8 }}>⚠️ {loadErr}</p>}
-
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:20 }}>
         <p style={{ margin:0, fontSize:16, fontWeight:700 }}>テンプレート一覧（{templates.length}件）</p>
         <button onClick={()=>setMode("create")}
@@ -267,7 +261,6 @@ function TemplateAdmin() {
           ＋ テンプレを追加
         </button>
       </div>
-
       {templates.length===0 ? (
         <div style={{ textAlign:"center", padding:"60px 0", color:C.gray }}>
           <div style={{ fontSize:48, marginBottom:12 }}>📋</div>
@@ -303,9 +296,8 @@ function TemplateAdmin() {
   );
 }
 
-// ── Step形式でテンプレート新規作成 ───────────────────────
 function TemplateWizard({ onDone, onCancel }) {
-  const [step,       setStep]       = useState(1); // 1:基本情報 2:レイヤー編集
+  const [step,       setStep]       = useState(1);
   const [label,      setLabel]      = useState("");
   const [sizeId,     setSizeId]     = useState("reel");
   const [sampleFile, setSampleFile] = useState(null);
@@ -331,7 +323,6 @@ function TemplateWizard({ onDone, onCancel }) {
       const tabId  = "tab_" + Date.now();
       const bgName = `bg_${tabId}.png`;
       const smName = `sample_${tabId}.png`;
-
       setMsg("① 背景画像をアップロード中...");
       await ghPut(`public/${bgName}`, await toBase64(bgFile), `Add bg: ${label}`);
       setMsg("② お手本画像をアップロード中...");
@@ -352,30 +343,24 @@ function TemplateWizard({ onDone, onCancel }) {
 
   return (
     <div style={{ maxWidth:640, margin:"0 auto", padding:"24px 16px" }}>
-      {/* ステップインジケーター */}
       <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:24 }}>
         <button onClick={onCancel} style={{ background:"none", border:"none", color:C.gray, fontSize:13, cursor:"pointer", padding:0 }}>← 戻る</button>
         <div style={{ flex:1, display:"flex", alignItems:"center", gap:4 }}>
           {[1,2].map(n=>(
             <div key={n} style={{ display:"flex", alignItems:"center", gap:4, flex:1 }}>
               <div style={{ width:28, height:28, borderRadius:"50%", background:step>=n?C.g1:C.grayLL, color:step>=n?C.white:C.gray, display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:700, flexShrink:0 }}>{n}</div>
-              <span style={{ fontSize:11, color:step>=n?C.g1:C.gray, fontWeight:step===n?700:400 }}>
-                {n===1?"基本情報":"レイヤー編集"}
-              </span>
+              <span style={{ fontSize:11, color:step>=n?C.g1:C.gray, fontWeight:step===n?700:400 }}>{n===1?"基本情報":"レイヤー編集"}</span>
               {n<2&&<div style={{ flex:1, height:2, background:step>n?C.g1:C.grayLL, borderRadius:1 }} />}
             </div>
           ))}
         </div>
       </div>
 
-      {/* Step1: 基本情報 */}
       {step===1&&(
         <div style={{ background:C.white, borderRadius:16, padding:"20px", border:`1px solid ${C.grayLL}`, animation:"fadeUp 0.2s ease" }}>
           <p style={{ margin:"0 0 16px", fontSize:15, fontWeight:700 }}>Step1：基本情報を入力</p>
-
           <label style={LS}>テンプレート名</label>
           <input value={label} onChange={e=>setLabel(e.target.value)} placeholder="例：街頭演説バナー" style={IS} />
-
           <label style={LS}>SNSサイズ</label>
           <div style={{ display:"flex", gap:8, marginBottom:16, flexWrap:"wrap" }}>
             {SNS_SIZES.map(s=>(
@@ -384,36 +369,24 @@ function TemplateWizard({ onDone, onCancel }) {
               </button>
             ))}
           </div>
-
           <label style={LS}>① お手本画像（完成イメージ）</label>
           <DropZone preview={samplePrev} onFile={f=>{ setSampleFile(f); setSamplePrev(URL.createObjectURL(f)); }} label="お手本画像をドロップ / タップして選択" />
-
           <label style={{ ...LS, marginTop:12 }}>② 背景画像（ベース）</label>
           <DropZone preview={bgPrev} onFile={f=>{ setBgFile(f); setBgPrev(URL.createObjectURL(f)); }} label="背景画像をドロップ / タップして選択" />
-
           {msg&&<p style={{ color:C.red, fontSize:12, margin:"10px 0 0" }}>{msg}</p>}
-
-          <button onClick={goStep2}
-            style={{ width:"100%", marginTop:16, padding:"14px", background:`linear-gradient(135deg,${C.g1},${C.g2})`, border:"none", borderRadius:12, color:C.white, fontSize:14, fontWeight:700, cursor:"pointer" }}>
+          <button onClick={goStep2} style={{ width:"100%", marginTop:16, padding:"14px", background:`linear-gradient(135deg,${C.g1},${C.g2})`, border:"none", borderRadius:12, color:C.white, fontSize:14, fontWeight:700, cursor:"pointer" }}>
             次へ → レイヤー編集
           </button>
         </div>
       )}
 
-      {/* Step2: レイヤー編集 */}
       {step===2&&(
         <LayerEditor
-          bgDataUrl={bgPrev}
-          bgPath={null}
-          sampleUrl={samplePrev}
-          canvasW={size.w}
-          canvasH={size.h}
-          elements={elements}
-          setElements={setElements}
-          saving={saving}
-          msg={msg}
-          onBack={()=>setStep(1)}
-          onSave={save}
+          bgDataUrl={bgPrev} bgPath={null} sampleUrl={samplePrev}
+          canvasW={size.w} canvasH={size.h}
+          elements={elements} setElements={setElements}
+          saving={saving} msg={msg}
+          onBack={()=>setStep(1)} onSave={save}
           saveLabel="✦ テンプレートとして登録する"
         />
       )}
@@ -421,30 +394,24 @@ function TemplateWizard({ onDone, onCancel }) {
   );
 }
 
-// ── テンプレート編集（既存） ──────────────────────────────
 function TemplateEditor({ tmpl, onDone, onCancel }) {
-  const [step,     setStep]     = useState(1); // 1:基本情報 2:レイヤー
-  const [label,    setLabel]    = useState(tmpl.label);
-  const [sampleFile,setSampleFile]=useState(null);
-  const [samplePrev,setSamplePrev]=useState(null);
-  const [bgFile,   setBgFile]   = useState(null);
-  const [bgPrev,   setBgPrev]   = useState(null);
-  const [elements, setElements] = useState([]);
-  const [loading,  setLoading]  = useState(true);
-  const [saving,   setSaving]   = useState(false);
-  const [msg,      setMsg]      = useState("");
-
-  const size = SNS_SIZES.find(s=>s.w===tmpl.w&&s.h===tmpl.h)||SNS_SIZES[0];
+  const [step,      setStep]      = useState(1);
+  const [label,     setLabel]     = useState(tmpl.label);
+  const [sampleFile,setSampleFile]= useState(null);
+  const [samplePrev,setSamplePrev]= useState(null);
+  const [bgFile,    setBgFile]    = useState(null);
+  const [bgPrev,    setBgPrev]    = useState(null);
+  const [elements,  setElements]  = useState([]);
+  const [loading,   setLoading]   = useState(true);
+  const [saving,    setSaving]    = useState(false);
+  const [msg,       setMsg]       = useState("");
 
   useEffect(()=>{
     (async()=>{
       try {
         const data = await ghGetContent(`public/templates/${tmpl.id}/template.json`);
         if (data?.content) {
-          const decoded = decodeURIComponent(
-            atob(data.content.replace(/\n/g,""))
-              .split("").map(c=>"%" + c.charCodeAt(0).toString(16).padStart(2,"0")).join("")
-          );
+          const decoded = decodeURIComponent(atob(data.content.replace(/\n/g,"")).split("").map(c=>"%" + c.charCodeAt(0).toString(16).padStart(2,"0")).join(""));
           const parsed = JSON.parse(decoded);
           if (parsed?.elements) setElements(parsed.elements);
         }
@@ -478,7 +445,6 @@ function TemplateEditor({ tmpl, onDone, onCancel }) {
         <button onClick={step===2?()=>setStep(1):onCancel} style={{ background:"none", border:"none", color:C.gray, fontSize:13, cursor:"pointer", padding:0 }}>← 戻る</button>
         <p style={{ margin:0, fontSize:15, fontWeight:700, flex:1 }}>「{tmpl.label}」を編集</p>
       </div>
-
       <div style={{ display:"flex", gap:4, marginBottom:20 }}>
         {[["1","基本情報"],["2","レイヤー編集"]].map(([n,lbl])=>(
           <button key={n} onClick={()=>Number(n)===2?goStep2():setStep(1)}
@@ -492,23 +458,19 @@ function TemplateEditor({ tmpl, onDone, onCancel }) {
         <div style={{ background:C.white, borderRadius:16, padding:"20px", border:`1px solid ${C.grayLL}`, animation:"fadeUp 0.2s ease" }}>
           <label style={LS}>テンプレート名</label>
           <input value={label} onChange={e=>setLabel(e.target.value)} style={IS} />
-
           <label style={LS}>お手本画像を差し替え（任意）</label>
           <div style={{ display:"flex", gap:10, alignItems:"flex-start", marginBottom:12 }}>
             <img src={`${RAW_BASE}${tmpl.sample}?t=${Date.now()}`} alt=""
               style={{ width:48, height:68, objectFit:"cover", borderRadius:6, border:`1px solid ${C.grayLL}`, background:C.grayLL, flexShrink:0 }} />
             <div style={{ flex:1 }}><DropZone preview={samplePrev} onFile={f=>{ setSampleFile(f); setSamplePrev(URL.createObjectURL(f)); }} label="新しい画像を選択" /></div>
           </div>
-
           <label style={LS}>背景画像を差し替え（任意）</label>
           <div style={{ display:"flex", gap:10, alignItems:"flex-start", marginBottom:12 }}>
             <img src={`${RAW_BASE}${tmpl.bg}?t=${Date.now()}`} alt=""
               style={{ width:48, height:68, objectFit:"cover", borderRadius:6, border:`1px solid ${C.grayLL}`, background:C.grayLL, flexShrink:0 }} />
             <div style={{ flex:1 }}><DropZone preview={bgPrev} onFile={f=>{ setBgFile(f); setBgPrev(URL.createObjectURL(f)); }} label="新しい画像を選択" /></div>
           </div>
-
-          <button onClick={goStep2}
-            style={{ width:"100%", padding:"13px", background:`linear-gradient(135deg,${C.g1},${C.g2})`, border:"none", borderRadius:12, color:C.white, fontSize:14, fontWeight:700, cursor:"pointer" }}>
+          <button onClick={goStep2} style={{ width:"100%", padding:"13px", background:`linear-gradient(135deg,${C.g1},${C.g2})`, border:"none", borderRadius:12, color:C.white, fontSize:14, fontWeight:700, cursor:"pointer" }}>
             次へ → レイヤー編集
           </button>
         </div>
@@ -516,17 +478,12 @@ function TemplateEditor({ tmpl, onDone, onCancel }) {
 
       {step===2&&(
         <LayerEditor
-          bgDataUrl={bgPrev}
-          bgPath={`${RAW_BASE}${tmpl.bg}`}
+          bgDataUrl={bgPrev} bgPath={`${RAW_BASE}${tmpl.bg}`}
           sampleUrl={samplePrev || `${RAW_BASE}${tmpl.sample}`}
-          canvasW={tmpl.w||1080}
-          canvasH={tmpl.h||1920}
-          elements={elements}
-          setElements={setElements}
-          saving={saving}
-          msg={msg}
-          onBack={()=>setStep(1)}
-          onSave={save}
+          canvasW={tmpl.w||1080} canvasH={tmpl.h||1920}
+          elements={elements} setElements={setElements}
+          saving={saving} msg={msg}
+          onBack={()=>setStep(1)} onSave={save}
           saveLabel="✦ 更新して保存する"
         />
       )}
@@ -534,17 +491,14 @@ function TemplateEditor({ tmpl, onDone, onCancel }) {
   );
 }
 
-// ── レイヤーエディタ（共通） ──────────────────────────────
 function LayerEditor({ bgDataUrl, bgPath, sampleUrl, canvasW, canvasH, elements, setElements, saving, msg, onBack, onSave, saveLabel }) {
   const [selected, setSelected] = useState(null);
   const [editing,  setEditing]  = useState(null);
   const [bgImg,    setBgImg]    = useState(null);
-  const [parts,    setParts]    = useState([]);
-  const [showParts,setShowParts]= useState(false);
 
-  const canvasRef = useRef(null);
-  const dragging  = useRef(null);
-  const pinchRef  = useRef({ lastDist:null });
+  const canvasRef   = useRef(null);
+  const dragging    = useRef(null);
+  const pinchRef    = useRef({ lastDist:null });
   const imgInputRef = useRef();
 
   const CW = canvasW || 1080;
@@ -553,7 +507,6 @@ function LayerEditor({ bgDataUrl, bgPath, sampleUrl, canvasW, canvasH, elements,
   const PH = Math.round(PW*CH/CW);
   const R  = PW/CW;
 
-  // 背景画像読み込み
   useEffect(()=>{
     const src = bgDataUrl || bgPath;
     if (!src) return;
@@ -563,7 +516,6 @@ function LayerEditor({ bgDataUrl, bgPath, sampleUrl, canvasW, canvasH, elements,
     bg.src = src+(bgPath?`?t=${Date.now()}`:"");
   },[bgDataUrl, bgPath]);
 
-  // キャンバス描画
   useEffect(()=>{
     if(!canvasRef.current)return;
     canvasRef.current.width=PW;
@@ -586,9 +538,7 @@ function LayerEditor({ bgDataUrl, bgPath, sampleUrl, canvasW, canvasH, elements,
   const onMouseMove = (e)=>{
     if(!dragging.current)return;
     const{x,y}=getXY(e.clientX,e.clientY);
-    setElements(els=>els.map(el=>el.id===dragging.current.id
-      ?{...el,x:dragging.current.origX+(x-dragging.current.startX),y:dragging.current.origY+(y-dragging.current.startY)}
-      :el));
+    setElements(els=>els.map(el=>el.id===dragging.current.id?{...el,x:dragging.current.origX+(x-dragging.current.startX),y:dragging.current.origY+(y-dragging.current.startY)}:el));
   };
   const onMouseUp = ()=>{ dragging.current=null; };
 
@@ -614,24 +564,23 @@ function LayerEditor({ bgDataUrl, bgPath, sampleUrl, canvasW, canvasH, elements,
 
   const updateEl = (id,patch)=>setElements(e=>e.map(el=>el.id===id?{...el,...patch}:el));
   const deleteEl = (id)=>{ setElements(e=>e.filter(el=>el.id!==id)); if(selected===id){setSelected(null);setEditing(null);} };
+  const duplicateEl = (id)=>{
+    const el=elements.find(el=>el.id===id); if(!el)return;
+    const newEl={...JSON.parse(JSON.stringify(el)), id:uid(), x:el.x+30, y:el.y+30, zIndex:elements.length};
+    setElements(e=>[...e,newEl]); setSelected(newEl.id);
+  };
   const moveLayer = (id,dir)=>{
     setElements(e=>{
       const arr=[...e].sort((a,b)=>a.zIndex-b.zIndex);
       const idx=arr.findIndex(el=>el.id===id);
-      if(dir==="up"&&idx<arr.length-1)[arr[idx].zIndex,arr[idx+1].zIndex]=[arr[idx+1].zIndex,arr[idx].zIndex];
-      else if(dir==="down"&&idx>0)[arr[idx].zIndex,arr[idx-1].zIndex]=[arr[idx-1].zIndex,arr[idx].zIndex];
-      return arr;
+      if(dir==="up"&&idx<arr.length-1){ const tmp=arr[idx]; arr[idx]=arr[idx+1]; arr[idx+1]=tmp; }
+      else if(dir==="down"&&idx>0){ const tmp=arr[idx]; arr[idx]=arr[idx-1]; arr[idx-1]=tmp; }
+      return arr.map((el,i)=>({...el,zIndex:i}));
     });
   };
 
   const addTextEl = ()=>{
-    const el={
-      id:uid(), type:"text", text:"テキストを入力",
-      font:"noto_sans", size:"medium", color:"#FFFFFF", vertical:false,
-      shadow:false, outline:false, outlineColor:"#000000", outlineWidth:4,
-      glow:false, glowColor:"#FF6600",
-      x:CW/2, y:CH/2, scale:1, rotate:0, zIndex:elements.length, locked:false,
-    };
+    const el={ id:uid(), type:"text", text:"テキストを入力", font:"noto_sans", size:"medium", color:"#FFFFFF", vertical:false, shadow:false, outline:false, outlineColor:"#000000", outlineWidth:4, glow:false, glowColor:"#FF6600", x:CW/2, y:CH/2, scale:1, rotate:0, zIndex:elements.length, locked:false };
     setElements(e=>[...e,el]); setSelected(el.id); setEditing(el.id);
   };
 
@@ -640,11 +589,7 @@ function LayerEditor({ bgDataUrl, bgPath, sampleUrl, canvasW, canvasH, elements,
     reader.onload=ev=>{
       const img=new Image();
       img.onload=()=>{
-        const el={
-          id:uid(), type:"image", src:ev.target.result,
-          naturalW:img.width, naturalH:img.height,
-          x:CW/2, y:CH/2, scale:0.3, rotate:0, zIndex:elements.length, locked:false,
-        };
+        const el={ id:uid(), type:"image", src:ev.target.result, naturalW:img.width, naturalH:img.height, x:CW/2, y:CH/2, scale:0.3, rotate:0, zIndex:elements.length, locked:false };
         setElements(e=>[...e,el]); setSelected(el.id);
       };
       img.src=ev.target.result;
@@ -660,7 +605,6 @@ function LayerEditor({ bgDataUrl, bgPath, sampleUrl, canvasW, canvasH, elements,
         ドラッグで移動　ピンチで拡縮　🔒固定にするとユーザーが操作できません
       </p>
 
-      {/* お手本画像 */}
       {sampleUrl&&(
         <div style={{ marginBottom:12, background:C.white, borderRadius:10, border:`1px solid ${C.grayLL}`, overflow:"hidden" }}>
           <p style={{ margin:0, padding:"6px 12px", fontSize:11, color:C.gray, background:C.cream, borderBottom:`1px solid ${C.grayLL}` }}>📌 お手本（参考）</p>
@@ -670,7 +614,6 @@ function LayerEditor({ bgDataUrl, bgPath, sampleUrl, canvasW, canvasH, elements,
         </div>
       )}
 
-      {/* キャンバス */}
       <div style={{ display:"flex", justifyContent:"center", marginBottom:12 }}>
         <div style={{ border:`2px solid ${selected?C.g1:C.grayL}`, borderRadius:6, overflow:"hidden", boxShadow:`0 6px 24px rgba(0,0,0,0.15)` }}>
           <canvas ref={canvasRef} width={PW} height={PH}
@@ -683,7 +626,6 @@ function LayerEditor({ bgDataUrl, bgPath, sampleUrl, canvasW, canvasH, elements,
         {selected?"ドラッグで移動　ピンチで拡縮":"↓ レイヤーを選んで操作"}
       </p>
 
-      {/* 追加ボタン */}
       <div style={{ display:"flex", gap:8, marginBottom:12 }}>
         <button onClick={addTextEl} style={{ flex:1, padding:"10px", background:C.g1, border:"none", borderRadius:9, color:C.white, fontSize:12, fontWeight:700, cursor:"pointer" }}>＋ テキスト</button>
         <label style={{ flex:1, padding:"10px", background:C.blue, border:"none", borderRadius:9, color:C.white, fontSize:12, fontWeight:700, cursor:"pointer", textAlign:"center" }}>
@@ -693,46 +635,42 @@ function LayerEditor({ bgDataUrl, bgPath, sampleUrl, canvasW, canvasH, elements,
         </label>
       </div>
 
-      {/* レイヤー一覧 */}
       {elements.length===0 ? (
         <div style={{ textAlign:"center", padding:"20px", color:C.gray, fontSize:12, background:C.white, borderRadius:12, border:`1px solid ${C.grayLL}`, marginBottom:14 }}>
           レイヤーがありません。上のボタンで追加してください。
         </div>
       ) : (
         <div style={{ background:C.white, borderRadius:12, border:`1px solid ${C.grayLL}`, overflow:"hidden", marginBottom:14 }}>
-          <p style={{ margin:0, padding:"8px 12px", fontSize:11, fontWeight:700, color:C.gray, background:C.cream, borderBottom:`1px solid ${C.grayLL}` }}>
-            レイヤー構成（上が前面）
-          </p>
+          <p style={{ margin:0, padding:"8px 12px", fontSize:11, fontWeight:700, color:C.gray, background:C.cream, borderBottom:`1px solid ${C.grayLL}` }}>レイヤー構成（上が前面）</p>
           {sortedEls.map((el,idx)=>{
             const isLocked = el.locked===true;
             const isSel = selected===el.id;
             return (
               <div key={el.id} style={{ borderBottom:idx<sortedEls.length-1?`1px solid ${C.grayLL}`:"none" }}>
-                {/* レイヤー行 */}
                 <div onClick={()=>{ setSelected(el.id); setEditing(null); }}
-                  style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 12px", background:isSel?`${C.g1}10`:C.white, cursor:"pointer", transition:"background 0.1s" }}>
-                  <span style={{ fontSize:15, flexShrink:0 }}>{el.type==="text"?"✏️":"🖼"}</span>
+                  style={{ display:"flex", alignItems:"center", gap:6, padding:"10px 12px", background:isSel?`${C.g1}10`:C.white, cursor:"pointer" }}>
+                  <span style={{ fontSize:14, flexShrink:0 }}>{el.type==="text"?"✏️":"🖼"}</span>
                   <span style={{ flex:1, fontSize:12, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", color:isSel?C.g1:C.ink, fontWeight:isSel?700:400 }}>
                     {el.type==="text"?el.text:"画像"}
                   </span>
-                  {/* 固定トグル */}
                   <button onClick={e=>{e.stopPropagation();updateEl(el.id,{locked:!isLocked});}}
-                    style={{ flexShrink:0, padding:"3px 9px", background:isLocked?"#1E3A5F":"#E8F5E9", border:`1px solid ${isLocked?"#2563EB":"#4CAF50"}`, borderRadius:8, color:isLocked?"#60A5FA":"#2E7D32", fontSize:10, fontWeight:700, cursor:"pointer" }}>
+                    style={{ flexShrink:0, padding:"3px 8px", background:isLocked?"#1E3A5F":"#E8F5E9", border:`1px solid ${isLocked?"#2563EB":"#4CAF50"}`, borderRadius:7, color:isLocked?"#60A5FA":"#2E7D32", fontSize:10, fontWeight:700, cursor:"pointer" }}>
                     {isLocked?"🔒 固定":"✏️ 編集可"}
                   </button>
                   {isSel&&el.type==="text"&&(
                     <button onClick={e=>{e.stopPropagation();setEditing(v=>v===el.id?null:el.id);}}
-                      style={{ flexShrink:0, padding:"3px 9px", background:C.g1, border:"none", borderRadius:7, color:C.white, fontSize:10, fontWeight:700, cursor:"pointer" }}>
+                      style={{ flexShrink:0, padding:"3px 8px", background:C.g1, border:"none", borderRadius:7, color:C.white, fontSize:10, fontWeight:700, cursor:"pointer" }}>
                       {editing===el.id?"閉じる":"テキスト編集"}
                     </button>
                   )}
+                  <button onClick={e=>{e.stopPropagation();duplicateEl(el.id);}} style={SB(C.blue)}>複製</button>
                   <button onClick={e=>{e.stopPropagation();moveLayer(el.id,"up");}}   style={SB()}>↑</button>
                   <button onClick={e=>{e.stopPropagation();moveLayer(el.id,"down");}} style={SB()}>↓</button>
                   <button onClick={e=>{e.stopPropagation();if(confirm("削除？"))deleteEl(el.id);}} style={SB(C.red)}>✕</button>
                 </div>
 
-                {/* 選択中：スライダー */}
-                {isSel&&editing!==el.id&&(
+                {/* スライダー：選択中は常に表示 */}
+                {isSel&&(
                   <div style={{ padding:"8px 14px 10px", background:`${C.g1}06`, borderTop:`1px solid ${C.grayLL}`, display:"flex", flexDirection:"column", gap:6 }}>
                     <SliderRow label="🔄 回転" min={-180} max={180} value={el.rotate||0} onChange={v=>updateEl(el.id,{rotate:v})} unit="°" onReset={()=>updateEl(el.id,{rotate:0})} />
                     <SliderRow label="⤢ サイズ" min={0.05} max={10} step={0.01} value={el.scale||1} onChange={v=>updateEl(el.id,{scale:v})} unit="%" display={Math.round((el.scale||1)*100)} onReset={()=>updateEl(el.id,{scale:1})} />
@@ -751,7 +689,6 @@ function LayerEditor({ bgDataUrl, bgPath, sampleUrl, canvasW, canvasH, elements,
                   </div>
                 )}
 
-                {/* テキスト編集パネル */}
                 {editing===el.id&&el.type==="text"&&(
                   <div style={{ padding:"12px 14px", background:`${C.g1}08`, borderTop:`1px solid ${C.g1}30`, animation:"fadeUp 0.15s ease" }}>
                     <label style={LS}>テキスト内容</label>
@@ -803,9 +740,7 @@ function LayerEditor({ bgDataUrl, bgPath, sampleUrl, canvasW, canvasH, elements,
   );
 }
 
-// ── スライダー行 ──────────────────────────────────────────
 function SliderRow({ label, min, max, step=1, value, onChange, unit, display, onReset }) {
-  // 数値入力用の表示値（%表示の場合は100倍して表示）
   const isPercent = unit === "%";
   const shownVal = isPercent ? Math.round(value * 100) : (display !== undefined ? display : value);
 
@@ -834,7 +769,6 @@ function SliderRow({ label, min, max, step=1, value, onChange, unit, display, on
   );
 }
 
-// ── DropZone ──────────────────────────────────────────────
 function DropZone({ preview, onFile, label }) {
   const [drag, setDrag] = useState(false);
   const ref = useRef();
