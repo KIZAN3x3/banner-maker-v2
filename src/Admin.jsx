@@ -598,7 +598,7 @@ function LayerEditor({ bgDataUrl, bgPath, sampleUrl, canvasW, canvasH, elements,
   const sorted=[...elements].filter(el=>el&&el.type==="text"&&!el.locked).sort((a,b)=>b.zIndex-a.zIndex);
   for(const el of sorted){
     const dist=Math.sqrt(Math.pow(x-el.x,2)+Math.pow(y-el.y,2));
-    if(dist<300/R){
+    if(dist<500/R){
       setSelected(el.id); setEditing(el.id); return;
     }
   }
