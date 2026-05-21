@@ -74,7 +74,28 @@ async function ghGetContent(path) {
 }
 
 function toBase64(file) {
-  return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result.split(",")[1]); r.onerror=rej; r.readAsDataURL(file); });
+  return new Promise((res,rej)=>{
+    const r=new FileReader();
+    r.onload=ev=>{
+      const img=new Image();
+      img.onload=()=>{
+        const MAX=1920;
+        let w=img.width, h=img.height;
+        if(w>MAX||h>MAX){
+          if(w>h){ h=Math.round(h*MAX/w); w=MAX; }
+          else { w=Math.round(w*MAX/h); h=MAX; }
+        }
+        const canvas=document.createElement("canvas");
+        canvas.width=w; canvas.height=h;
+        canvas.getContext("2d").drawImage(img,0,0,w,h);
+        res(canvas.toDataURL("image/jpeg",0.82).split(",")[1]);
+      };
+      img.onerror=rej;
+      img.src=ev.target.result;
+    };
+    r.onerror=rej;
+    r.readAsDataURL(file);
+  });
 }
 
 function jsonToB64(obj) {
