@@ -667,17 +667,24 @@ function LayerEditor({ bgDataUrl, bgPath, sampleUrl, canvasW, canvasH, elements,
   };
 
   const addImageEl = (file)=>{
-    const reader=new FileReader();
-    reader.onload=ev=>{
-      const img=new Image();
-      img.onload=()=>{
-        const el={ id:uid(), type:"image", src:ev.target.result, naturalW:img.width, naturalH:img.height, x:CW/2, y:CH/2, scale:0.3, rotate:0, zIndex:elements.length, locked:false };
-        setElements(e=>[...e,el]); setSelected(el.id);
-      };
-      img.src=ev.target.result;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    const img=new Image();
+    img.onload=()=>{
+      const MAX=1920;
+      let w=img.width, h=img.height;
+      if(w>MAX||h>MAX){ if(w>h){h=Math.round(h*MAX/w);w=MAX;}else{w=Math.round(w*MAX/h);h=MAX;} }
+      const canvas=document.createElement("canvas");
+      canvas.width=w; canvas.height=h;
+      canvas.getContext("2d").drawImage(img,0,0,w,h);
+      const src=canvas.toDataURL("image/jpeg",0.82);
+      const el={ id:uid(), type:"image", src, naturalW:w, naturalH:h, x:CW/2, y:CH/2, scale:0.3, rotate:0, zIndex:elements.length, locked:false };
+      setElements(e=>[...e,el]); setSelected(el.id);
     };
-    reader.readAsDataURL(file);
+    img.src=ev.target.result;
   };
+  reader.readAsDataURL(file);
+};
 
   const sortedEls = [...elements].sort((a,b)=>b.zIndex-a.zIndex);
 
