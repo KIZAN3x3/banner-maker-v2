@@ -562,6 +562,7 @@ function LayerEditor({ bgDataUrl, bgPath, sampleUrl, canvasW, canvasH, elements,
   const dragging    = useRef(null);
   const pinchRef    = useRef({ lastDist:null });
   const lastTap     = useRef(0);
+  const lastClick   = useRef(0);
   const imgInputRef = useRef();
 
   const CW = canvasW || 1080;
@@ -592,31 +593,37 @@ function LayerEditor({ bgDataUrl, bgPath, sampleUrl, canvasW, canvasH, elements,
     return{x:(cx-rect.left)/R, y:(cy-rect.top)/R};
   };
 
-  // ★ダブルクリックでインライン編集オーバーレイ
-  const onDoubleClick = (e)=>{
-    const{x,y}=getXY(e.clientX,e.clientY);
+  // ★ダブルクリック/ダブルタップでインライン編集
+  const activateInlineEdit = (cx, cy)=>{
+    const{x,y}=getXY(cx,cy);
     const sorted=[...elements].filter(el=>el&&el.type==="text").sort((a,b)=>b.zIndex-a.zIndex);
     for(const el of sorted){
       const dist=Math.sqrt(Math.pow(x-el.x,2)+Math.pow(y-el.y,2));
-      if(dist<300/R){
+      if(dist<200){
         setSelected(el.id);
         const fs=(TEXT_SIZES[el.size]||72)*el.scale*R;
-        const w=Math.max(200, Math.max(...el.text.split("\n").map(l=>l.length))*fs*0.6);
-        const h=Math.max(60, el.text.split("\n").length*fs*1.4);
-        setInlineEdit({ id:el.id, x:el.x*R, y:el.y*R, w, h });
-        return;
+        const lines=el.text.split("\n");
+        const w=Math.max(120, Math.max(...lines.map(l=>l.length))*fs*0.65);
+        const h=Math.max(fs*1.5, lines.length*fs*1.4);
+        setInlineEdit({ id:el.id, x:el.x*R, y:el.y*R, w, h, fs, font:el.font, color:el.color });
+        return true;
       }
     }
+    return false;
   };
-      const hw=Math.max(...el.text.split("\n").map(l=>l.length))*fs*0.55;
-      const hh=el.text.split("\n").length*fs*1.3/2;
-      if(Math.abs(x-el.x)<hw&&Math.abs(y-el.y)<hh){
-        setSelected(el.id); setEditing(el.id); return;
-      }
+
+  const onCanvasClick = (e)=>{
+    const now=Date.now();
+    if(now-lastClick.current<400){
+      activateInlineEdit(e.clientX, e.clientY);
+      lastClick.current=0;
+    } else {
+      lastClick.current=now;
     }
   };
 
   const onMouseDown = (e)=>{
+    if(inlineEdit)return;
     if(!selected)return;
     const el=elements.find(el=>el.id===selected); if(!el)return;
     const{x,y}=getXY(e.clientX,e.clientY);
@@ -636,10 +643,12 @@ function LayerEditor({ bgDataUrl, bgPath, sampleUrl, canvasW, canvasH, elements,
     } else {
       const now=Date.now();
       if(now-lastTap.current<300){
-        onDoubleClick({clientX:e.touches[0].clientX,clientY:e.touches[0].clientY});
+        activateInlineEdit(e.touches[0].clientX, e.touches[0].clientY);
+        lastTap.current=0;
+      } else {
+        lastTap.current=now;
+        onMouseDown({clientX:e.touches[0].clientX,clientY:e.touches[0].clientY});
       }
-      lastTap.current=now;
-      onMouseDown({clientX:e.touches[0].clientX,clientY:e.touches[0].clientY});
     }
   };
   const onTouchMove = (e)=>{
@@ -712,14 +721,13 @@ function LayerEditor({ bgDataUrl, bgPath, sampleUrl, canvasW, canvasH, elements,
         <div style={{ position:"relative", border:`2px solid ${selected?C.g1:C.grayL}`, borderRadius:6, overflow:"hidden", boxShadow:`0 6px 24px rgba(0,0,0,0.15)` }}>
           <canvas ref={canvasRef} width={PW} height={PH}
             onMouseDown={onMouseDown} onMouseMove={onMouseMove} onMouseUp={onMouseUp} onMouseLeave={onMouseUp}
-            onDoubleClick={onDoubleClick}
+            onClick={onCanvasClick}
             onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
             style={{ display:"block", cursor:selected?"grab":"default", touchAction:"none", userSelect:"none" }} />
           {/* ★インライン編集オーバーレイ */}
           {inlineEdit&&(()=>{
             const el=elements.find(el=>el.id===inlineEdit.id);
             if(!el)return null;
-            const fs=(TEXT_SIZES[el.size]||72)*el.scale*R;
             const font=FONTS.find(f=>f.id===el.font)||FONTS[0];
             return (
               <textarea
@@ -730,15 +738,15 @@ function LayerEditor({ bgDataUrl, bgPath, sampleUrl, canvasW, canvasH, elements,
                 onKeyDown={e=>{ if(e.key==="Escape")setInlineEdit(null); }}
                 style={{
                   position:"absolute",
-                  left: inlineEdit.x - inlineEdit.w/2,
-                  top:  inlineEdit.y - inlineEdit.h/2,
-                  width: inlineEdit.w,
+                  left: Math.max(0, inlineEdit.x - inlineEdit.w/2),
+                  top:  Math.max(0, inlineEdit.y - inlineEdit.h/2),
+                  width: Math.min(inlineEdit.w, PW),
                   minHeight: inlineEdit.h,
-                  fontSize: fs,
+                  fontSize: inlineEdit.fs,
                   fontFamily: font.family+",sans-serif",
                   fontWeight: font.weight,
                   color: el.color,
-                  background: "rgba(0,0,0,0.35)",
+                  background: "rgba(0,0,0,0.5)",
                   border: `2px solid ${C.g1}`,
                   borderRadius: 4,
                   outline: "none",
@@ -749,6 +757,7 @@ function LayerEditor({ bgDataUrl, bgPath, sampleUrl, canvasW, canvasH, elements,
                   boxSizing: "border-box",
                   zIndex: 10,
                   caretColor: C.white,
+                  overflow: "hidden",
                 }}
               />
             );

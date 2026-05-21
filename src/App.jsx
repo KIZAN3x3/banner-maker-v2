@@ -150,7 +150,6 @@ function MainApp() {
     drawCanvas(previewRef.current,elements,bgImg,PW,PH,selected,CW_,CH_);
   },[screen,elements,bgImg,fontsReady,PW,PH,selected,CW_,CH_]);
 
-  // ★Undo履歴を49に増加
   const pushHistory = useCallback((els)=>{ setHistory(h=>[...h.slice(-49),JSON.parse(JSON.stringify(els))]); },[]);
   const undo = ()=>{ if(!history.length)return; setElements(history[history.length-1]); setHistory(h=>h.slice(0,-1)); };
 
@@ -178,32 +177,20 @@ function MainApp() {
   };
 
   const updateEl = (id,patch)=>setElements(e=>e.map(el=>el.id===id?{...el,...patch}:el));
-
-  const deleteEl = (id)=>{
-    pushHistory(elements);
-    setElements(e=>e.filter(el=>el.id!==id));
-    setSelected(null);
-    setEditing(null);
-  };
-
+  const deleteEl = (id)=>{ pushHistory(elements); setElements(e=>e.filter(el=>el.id!==id)); setSelected(null); setEditing(null); };
   const duplicateEl = (id)=>{
     const el=elements.find(el=>el.id===id); if(!el)return;
-    const newEl={...JSON.parse(JSON.stringify(el)), id:uid(), x:el.x+30, y:el.y+30, zIndex:elements.length};
     pushHistory(elements);
-    setElements(e=>[...e,newEl]);
-    setSelected(newEl.id);
+    const newEl={...JSON.parse(JSON.stringify(el)), id:uid(), x:el.x+30, y:el.y+30, zIndex:elements.length};
+    setElements(e=>[...e,newEl]); setSelected(newEl.id);
   };
-
   const moveLayer = (id,dir)=>{
     pushHistory(elements);
     setElements(e=>{
       const arr=[...e].sort((a,b)=>a.zIndex-b.zIndex);
       const idx=arr.findIndex(el=>el.id===id);
-      if(dir==="up"&&idx<arr.length-1){
-        const tmp=arr[idx]; arr[idx]=arr[idx+1]; arr[idx+1]=tmp;
-      } else if(dir==="down"&&idx>0){
-        const tmp=arr[idx]; arr[idx]=arr[idx-1]; arr[idx-1]=tmp;
-      }
+      if(dir==="up"&&idx<arr.length-1){ const tmp=arr[idx]; arr[idx]=arr[idx+1]; arr[idx+1]=tmp; }
+      else if(dir==="down"&&idx>0){ const tmp=arr[idx]; arr[idx]=arr[idx-1]; arr[idx-1]=tmp; }
       return arr.map((el,i)=>({...el,zIndex:i}));
     });
   };
@@ -225,14 +212,12 @@ function MainApp() {
     const work={ id:key, tab:activeTab, name:name||defaultName, elements:JSON.parse(JSON.stringify(elements)), createdAt:Date.now() };
     const updated={...saves,[key]:work}; setSaves(updated); localStorage.setItem(SS_KEY,JSON.stringify(updated)); alert("保存しました！");
   };
-
   const renameWork = (id)=>{
     const work=saves[id]; if(!work)return;
     const name=window.prompt("新しい名前を入力してください", work.name);
     if(name===null||!name.trim())return;
     const updated={...saves,[id]:{...work,name:name.trim()}}; setSaves(updated); localStorage.setItem(SS_KEY,JSON.stringify(updated));
   };
-
   const loadWork  = (work)=>{ setElements(work.elements); setSelected(null); setEditing(null); setHistory([]); setScreen("preview"); };
   const deleteWork= (id)=>{ const u={...saves}; delete u[id]; setSaves(u); localStorage.setItem(SS_KEY,JSON.stringify(u)); };
 
@@ -242,7 +227,6 @@ function MainApp() {
     drawCanvas(canvas,elements,bgImg,CW_,CH_,null,CW_,CH_);
     setDownloadUrl(canvas.toDataURL("image/png")); setGenerating(false); setScreen("done");
   };
-
   const reset = ()=>{ setElements([]); setSelected(null); setEditing(null); setHistory([]); setDownloadUrl(null); setScreen("home"); };
 
   const tabSaves = Object.values(saves).filter(s=>s.tab===activeTab).sort((a,b)=>b.createdAt-a.createdAt);
@@ -266,13 +250,7 @@ function MainApp() {
   return (
     <div style={{ display:"flex", minHeight:"100vh", background:C.cream, fontFamily:"'Noto Sans JP',sans-serif", color:C.ink }}>
       <div style={{ flex:1, overflowY:"auto", paddingBottom:60 }} id="main-scroll">
-        <AppHeader
-          screen={screen}
-          onBack={screen==="preview"?()=>setScreen("home"):screen==="done"?()=>setScreen("preview"):null}
-          onSave={screen==="preview"?saveWork:null}
-          onUndo={screen==="preview"&&history.length>0?undo:null}
-        />
-
+        <AppHeader screen={screen} onBack={screen==="preview"?()=>setScreen("home"):screen==="done"?()=>setScreen("preview"):null} onSave={screen==="preview"?saveWork:null} onUndo={screen==="preview"&&history.length>0?undo:null} />
         {screen==="home"&&(
           <div style={{ background:C.white, borderBottom:`1px solid ${C.grayLL}`, display:"flex", overflowX:"auto", position:"sticky", top:56, zIndex:100, WebkitOverflowScrolling:"touch" }}>
             {tabs.map(t=>(
@@ -280,23 +258,12 @@ function MainApp() {
             ))}
           </div>
         )}
-
         {screen==="home"    && <HomeScreen tab={tab} tabSaves={tabSaves} onNew={startNew} onLoad={loadWork} onDelete={deleteWork} onRename={renameWork} />}
         {screen==="preview" && <PreviewScreen tab={tab} elements={elements} setElements={setElements} selected={selected} setSelected={setSelected} editing={editing} setEditing={setEditing} bgImg={bgImg} sampleImg={sampleImg} canvasRef={previewRef} PW={PW} PH={PH} R={R} addText={addText} addImage={addImage} updateEl={updateEl} deleteEl={deleteEl} duplicateEl={duplicateEl} moveLayer={moveLayer} pushHistory={pushHistory} onGenerate={generate} generating={generating} />}
         {screen==="done"    && <DoneScreen downloadUrl={downloadUrl} onReset={reset} onBack={()=>setScreen("preview")} />}
       </div>
-
       <ScrollBar targetId="main-scroll" />
-
-      <style>{`
-        @keyframes spin{to{transform:rotate(360deg)}}
-        @keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
-        *{box-sizing:border-box}
-        input::placeholder{color:#C0B8B0}
-        textarea::placeholder{color:#C0B8B0}
-        #main-scroll::-webkit-scrollbar{display:none}
-        #main-scroll{scrollbar-width:none}
-      `}</style>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}} @keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}} *{box-sizing:border-box} input::placeholder{color:#C0B8B0} textarea::placeholder{color:#C0B8B0} #main-scroll::-webkit-scrollbar{display:none} #main-scroll{scrollbar-width:none}`}</style>
     </div>
   );
 }
@@ -307,53 +274,30 @@ function ScrollBar({ targetId }) {
   const dragging = useRef(false);
   const startY   = useRef(0);
   const startTop = useRef(0);
-
   useEffect(()=>{
-    const el = document.getElementById(targetId);
-    if(!el) return;
+    const el = document.getElementById(targetId); if(!el) return;
     const update = ()=>{
       const thumb = thumbRef.current; if(!thumb)return;
       const ratio = el.scrollTop / (el.scrollHeight - el.clientHeight || 1);
       const trackH = trackRef.current?.clientHeight || 0;
       const thumbH = Math.max(40, trackH * el.clientHeight / (el.scrollHeight||1));
-      thumb.style.height = thumbH+"px";
-      thumb.style.top    = (ratio*(trackH-thumbH))+"px";
+      thumb.style.height = thumbH+"px"; thumb.style.top = (ratio*(trackH-thumbH))+"px";
       thumb.style.opacity = el.scrollHeight > el.clientHeight ? "1" : "0";
     };
     el.addEventListener("scroll", update);
-    const ro = new ResizeObserver(update);
-    ro.observe(el);
-    update();
+    const ro = new ResizeObserver(update); ro.observe(el); update();
     return ()=>{ el.removeEventListener("scroll",update); ro.disconnect(); };
   },[targetId]);
-
-  const onMouseDown = (e)=>{
-    dragging.current=true;
-    startY.current=e.clientY;
-    startTop.current=parseFloat(thumbRef.current?.style.top||0);
-    e.preventDefault();
-  };
+  const onMouseDown = (e)=>{ dragging.current=true; startY.current=e.clientY; startTop.current=parseFloat(thumbRef.current?.style.top||0); e.preventDefault(); };
   useEffect(()=>{
-    const onMove=(e)=>{
-      if(!dragging.current)return;
-      const el=document.getElementById(targetId); if(!el)return;
-      const trackH=trackRef.current?.clientHeight||0;
-      const thumbH=parseFloat(thumbRef.current?.style.height||40);
-      const dy=e.clientY-startY.current;
-      const newTop=Math.min(Math.max(0,startTop.current+dy), trackH-thumbH);
-      const ratio=newTop/(trackH-thumbH||1);
-      el.scrollTop=ratio*(el.scrollHeight-el.clientHeight);
-    };
+    const onMove=(e)=>{ if(!dragging.current)return; const el=document.getElementById(targetId); if(!el)return; const trackH=trackRef.current?.clientHeight||0; const thumbH=parseFloat(thumbRef.current?.style.height||40); const dy=e.clientY-startY.current; const newTop=Math.min(Math.max(0,startTop.current+dy),trackH-thumbH); el.scrollTop=(newTop/(trackH-thumbH||1))*(el.scrollHeight-el.clientHeight); };
     const onUp=()=>{ dragging.current=false; };
-    window.addEventListener("mousemove",onMove);
-    window.addEventListener("mouseup",onUp);
+    window.addEventListener("mousemove",onMove); window.addEventListener("mouseup",onUp);
     return()=>{ window.removeEventListener("mousemove",onMove); window.removeEventListener("mouseup",onUp); };
   },[targetId]);
-
   return (
     <div ref={trackRef} style={{ width:14, position:"sticky", top:0, height:"100vh", background:"rgba(0,0,0,0.15)", flexShrink:0, borderRadius:7, margin:"4px 4px 4px 2px" }}>
-      <div ref={thumbRef} onMouseDown={onMouseDown}
-        style={{ position:"absolute", left:2, width:10, background:"#C4520E", borderRadius:5, cursor:"pointer", transition:"opacity 0.2s", opacity:0, minHeight:40, boxShadow:"0 2px 6px rgba(0,0,0,0.3)" }} />
+      <div ref={thumbRef} onMouseDown={onMouseDown} style={{ position:"absolute", left:2, width:10, background:"#C4520E", borderRadius:5, cursor:"pointer", transition:"opacity 0.2s", opacity:0, minHeight:40, boxShadow:"0 2px 6px rgba(0,0,0,0.3)" }} />
     </div>
   );
 }
@@ -361,10 +305,8 @@ function ScrollBar({ targetId }) {
 function AppHeader({ screen, onBack, onSave, onUndo }) {
   return (
     <header style={{ background:C.ink, height:56, display:"flex", alignItems:"center", padding:"0 16px", gap:10, position:"sticky", top:0, zIndex:300, boxShadow:"0 2px 20px #00000055" }}>
-      {onBack
-        ? <button onClick={onBack} style={{ background:"none", border:"none", cursor:"pointer", color:C.white, fontSize:26, lineHeight:1, padding:"0 8px 0 0", marginLeft:-4 }}>‹</button>
-        : <div style={{ width:32, height:32, borderRadius:8, background:`linear-gradient(135deg,${C.g1},${C.g2})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:900, color:C.white }}>BM</div>
-      }
+      {onBack ? <button onClick={onBack} style={{ background:"none", border:"none", cursor:"pointer", color:C.white, fontSize:26, lineHeight:1, padding:"0 8px 0 0", marginLeft:-4 }}>‹</button>
+               : <div style={{ width:32, height:32, borderRadius:8, background:`linear-gradient(135deg,${C.g1},${C.g2})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:900, color:C.white }}>BM</div>}
       <p style={{ margin:0, fontSize:14, fontWeight:700, color:C.white, flex:1 }}>バナーメーカー</p>
       <div style={{ display:"flex", gap:8 }}>
         {onUndo&&<button onClick={onUndo} style={{ background:`${C.white}15`, border:"none", borderRadius:8, padding:"6px 12px", color:C.white, fontSize:12, cursor:"pointer" }}>↩ 戻す</button>}
@@ -406,29 +348,44 @@ function PreviewScreen({ tab, elements, setElements, selected, setSelected, edit
   const dragging    = useRef(null);
   const pinchRef    = useRef({ lastDist:null });
   const lastTap     = useRef(0);
+  const lastClick   = useRef(0);
   const imgInputRef = useRef();
-  const [inlineEdit, setInlineEdit] = useState(null); // {id, x, y, w, h}
+  const [inlineEdit, setInlineEdit] = useState(null);
 
   const getXY = (cx,cy)=>{ if(!canvasRef.current)return{x:0,y:0}; const rect=canvasRef.current.getBoundingClientRect(); return{x:(cx-rect.left)/R,y:(cy-rect.top)/R}; };
 
-  // ★ダブルクリックでインライン編集オーバーレイ
-  const onDoubleClick = (e)=>{
-    const{x,y}=getXY(e.clientX,e.clientY);
+  // ★ダブルクリック/ダブルタップでインライン編集
+  const activateInlineEdit = (cx, cy)=>{
+    const{x,y}=getXY(cx,cy);
     const sorted=[...elements].filter(el=>el&&el.type==="text"&&!el.locked).sort((a,b)=>b.zIndex-a.zIndex);
     for(const el of sorted){
       const dist=Math.sqrt(Math.pow(x-el.x,2)+Math.pow(y-el.y,2));
-      if(dist<300/R){
+      if(dist<200){
         setSelected(el.id);
         const fs=(TEXT_SIZES[el.size]||72)*el.scale*R;
-        const w=Math.max(200, Math.max(...el.text.split("\n").map(l=>l.length))*fs*0.6);
-        const h=Math.max(60, el.text.split("\n").length*fs*1.4);
-        setInlineEdit({ id:el.id, x:el.x*R, y:el.y*R, w, h });
-        return;
+        const lines=el.text.split("\n");
+        const w=Math.max(120, Math.max(...lines.map(l=>l.length))*fs*0.65);
+        const h=Math.max(fs*1.5, lines.length*fs*1.4);
+        setInlineEdit({ id:el.id, x:el.x*R, y:el.y*R, w, h, fs, font:el.font, color:el.color });
+        return true;
       }
+    }
+    return false;
+  };
+
+  // PC：onClickで400ms以内の2回クリック検出
+  const onCanvasClick = (e)=>{
+    const now=Date.now();
+    if(now-lastClick.current<400){
+      activateInlineEdit(e.clientX, e.clientY);
+      lastClick.current=0;
+    } else {
+      lastClick.current=now;
     }
   };
 
   const onMouseDown = (e)=>{
+    if(inlineEdit)return;
     if(!selected)return;
     const el=elements.find(el=>el.id===selected); if(!el||el.locked)return;
     const{x,y}=getXY(e.clientX,e.clientY);
@@ -447,13 +404,15 @@ function PreviewScreen({ tab, elements, setElements, selected, setSelected, edit
       const dx=e.touches[0].clientX-e.touches[1].clientX, dy=e.touches[0].clientY-e.touches[1].clientY;
       pinchRef.current.lastDist=Math.sqrt(dx*dx+dy*dy);
     } else {
-      // ★ダブルタップ検出
       const now=Date.now();
       if(now-lastTap.current<300){
-        onDoubleClick({clientX:e.touches[0].clientX,clientY:e.touches[0].clientY});
+        // スマホ：ダブルタップ
+        activateInlineEdit(e.touches[0].clientX, e.touches[0].clientY);
+        lastTap.current=0;
+      } else {
+        lastTap.current=now;
+        onMouseDown({clientX:e.touches[0].clientX,clientY:e.touches[0].clientY});
       }
-      lastTap.current=now;
-      onMouseDown({clientX:e.touches[0].clientX,clientY:e.touches[0].clientY});
     }
   };
   const onTouchMove = (e)=>{
@@ -482,14 +441,14 @@ function PreviewScreen({ tab, elements, setElements, selected, setSelected, edit
       <div style={{ position:"relative", overflow:"hidden", border:`2px solid ${selected?C.g1:C.grayL}`, boxShadow:`0 8px 32px ${C.g1}20`, transition:"border-color 0.2s" }}>
         <canvas ref={canvasRef} width={PW} height={PH}
           onMouseDown={onMouseDown} onMouseMove={onMouseMove} onMouseUp={onMouseUp} onMouseLeave={onMouseUp}
-          onDoubleClick={onDoubleClick}
+          onClick={onCanvasClick}
           onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
           style={{ display:"block", cursor:selected?"grab":"default", touchAction:"none", userSelect:"none" }} />
+
         {/* ★インライン編集オーバーレイ */}
         {inlineEdit&&(()=>{
           const el=elements.find(el=>el.id===inlineEdit.id);
           if(!el)return null;
-          const fs=(TEXT_SIZES[el.size]||72)*el.scale*R;
           const font=FONTS.find(f=>f.id===el.font)||FONTS[0];
           return (
             <textarea
@@ -497,18 +456,18 @@ function PreviewScreen({ tab, elements, setElements, selected, setSelected, edit
               value={el.text}
               onChange={e=>updateEl(el.id,{text:e.target.value})}
               onBlur={()=>setInlineEdit(null)}
-              onKeyDown={e=>{ if(e.key==="Escape")setInlineEdit(null); }}
+              onKeyDown={e=>{ if(e.key==="Escape"){ setInlineEdit(null); } }}
               style={{
                 position:"absolute",
-                left: inlineEdit.x - inlineEdit.w/2,
-                top:  inlineEdit.y - inlineEdit.h/2,
-                width: inlineEdit.w,
+                left: Math.max(0, inlineEdit.x - inlineEdit.w/2),
+                top:  Math.max(0, inlineEdit.y - inlineEdit.h/2),
+                width: Math.min(inlineEdit.w, PW),
                 minHeight: inlineEdit.h,
-                fontSize: fs,
+                fontSize: inlineEdit.fs,
                 fontFamily: font.family+",sans-serif",
                 fontWeight: font.weight,
                 color: el.color,
-                background: "rgba(0,0,0,0.35)",
+                background: "rgba(0,0,0,0.5)",
                 border: `2px solid ${C.g1}`,
                 borderRadius: 4,
                 outline: "none",
@@ -519,11 +478,13 @@ function PreviewScreen({ tab, elements, setElements, selected, setSelected, edit
                 boxSizing: "border-box",
                 zIndex: 10,
                 caretColor: C.white,
+                overflow: "hidden",
               }}
             />
           );
         })()}
       </div>
+
       <p style={{ textAlign:"center", fontSize:10, color:C.gray, marginTop:5 }}>
         {selected?"ドラッグで移動　ピンチで拡縮　ダブルクリックでテキスト編集":"↓ レイヤーで要素を選んでください"}
       </p>
@@ -544,8 +505,7 @@ function PreviewScreen({ tab, elements, setElements, selected, setSelected, edit
               const isLocked = el.locked === true;
               return (
                 <div key={el.id} style={{ borderBottom:idx<sortedEls.length-1?`1px solid ${C.grayLL}`:"none" }}>
-                  <div
-                    onClick={()=>{ if(!isLocked){ setSelected(el.id); if(editing!==el.id)setEditing(null); } }}
+                  <div onClick={()=>{ if(!isLocked){ setSelected(el.id); if(editing!==el.id)setEditing(null); } }}
                     style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 12px", background:selected===el.id?`${C.g1}10`:isLocked?`#F5F5F5`:C.white, cursor:isLocked?"not-allowed":"pointer" }}>
                     <span style={{ fontSize:16, flexShrink:0 }}>{isLocked?"🔒":el.type==="text"?"✏️":"🖼"}</span>
                     <span style={{ flex:1, fontSize:12, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", color:isLocked?C.gray:selected===el.id?C.g1:C.ink, fontWeight:selected===el.id?700:400 }}>
@@ -565,28 +525,22 @@ function PreviewScreen({ tab, elements, setElements, selected, setSelected, edit
                       </div>
                     )}
                   </div>
-
                   {!isLocked&&selected===el.id&&editing!==el.id&&(
                     <div style={{ padding:"8px 14px 10px", background:`${C.g1}06`, borderTop:`1px solid ${C.grayLL}`, display:"flex", flexDirection:"column", gap:6 }}>
                       <div style={{ display:"flex", alignItems:"center", gap:8 }}>
                         <span style={{ fontSize:11, color:C.gray, flexShrink:0, width:48 }}>🔄 回転</span>
-                        <input type="range" min="-180" max="180" value={el.rotate||0}
-                          onChange={e=>updateEl(el.id,{rotate:Number(e.target.value)})}
-                          style={{ flex:1, accentColor:C.g1 }} />
+                        <input type="range" min="-180" max="180" value={el.rotate||0} onChange={e=>updateEl(el.id,{rotate:Number(e.target.value)})} style={{ flex:1, accentColor:C.g1 }} />
                         <span style={{ fontSize:11, color:C.gray, width:38, textAlign:"right", flexShrink:0 }}>{el.rotate||0}°</span>
                         <button onClick={()=>updateEl(el.id,{rotate:0})} style={{ padding:"2px 8px", background:"none", border:`1px solid ${C.grayL}`, borderRadius:5, fontSize:10, color:C.gray, cursor:"pointer", flexShrink:0 }}>R</button>
                       </div>
                       <div style={{ display:"flex", alignItems:"center", gap:8 }}>
                         <span style={{ fontSize:11, color:C.gray, flexShrink:0, width:48 }}>⤢ サイズ</span>
-                        <input type="range" min="0.05" max="5" step="0.01" value={el.scale||1}
-                          onChange={e=>updateEl(el.id,{scale:Number(e.target.value)})}
-                          style={{ flex:1, accentColor:C.g1 }} />
+                        <input type="range" min="0.05" max="5" step="0.01" value={el.scale||1} onChange={e=>updateEl(el.id,{scale:Number(e.target.value)})} style={{ flex:1, accentColor:C.g1 }} />
                         <span style={{ fontSize:11, color:C.gray, width:38, textAlign:"right", flexShrink:0 }}>{Math.round((el.scale||1)*100)}%</span>
                         <button onClick={()=>updateEl(el.id,{scale:1})} style={{ padding:"2px 8px", background:"none", border:`1px solid ${C.grayL}`, borderRadius:5, fontSize:10, color:C.gray, cursor:"pointer", flexShrink:0 }}>R</button>
                       </div>
                     </div>
                   )}
-
                   {!isLocked&&editing===el.id&&el.type==="text"&&(
                     <div style={{ padding:"14px", background:`${C.g1}08`, borderTop:`1px solid ${C.g1}30`, animation:"fadeUp 0.2s ease" }}>
                       <textarea value={el.text} onChange={e=>updateEl(el.id,{text:e.target.value})} style={{ width:"100%", minHeight:72, padding:"10px", background:C.white, border:`1px solid ${C.grayL}`, borderRadius:8, fontSize:15, fontFamily:"'Noto Sans JP',sans-serif", color:C.ink, resize:"vertical", outline:"none", marginBottom:10 }} />
@@ -611,9 +565,7 @@ function PreviewScreen({ tab, elements, setElements, selected, setSelected, edit
                       </div>
                       <label style={LS}>回転</label>
                       <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:10 }}>
-                        <input type="range" min="-180" max="180" value={el.rotate||0}
-                          onChange={e=>updateEl(el.id,{rotate:Number(e.target.value)})}
-                          style={{ flex:1, accentColor:C.g1 }} />
+                        <input type="range" min="-180" max="180" value={el.rotate||0} onChange={e=>updateEl(el.id,{rotate:Number(e.target.value)})} style={{ flex:1, accentColor:C.g1 }} />
                         <span style={{ fontSize:11, color:C.gray, width:38, flexShrink:0 }}>{el.rotate||0}°</span>
                         <button onClick={()=>updateEl(el.id,{rotate:0})} style={{ padding:"2px 8px", background:"none", border:`1px solid ${C.grayL}`, borderRadius:5, fontSize:10, color:C.gray, cursor:"pointer" }}>R</button>
                       </div>
@@ -626,11 +578,7 @@ function PreviewScreen({ tab, elements, setElements, selected, setSelected, edit
                         <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
                           <input type="checkbox" id={`ol_${el.id}`} checked={el.outline} onChange={e=>updateEl(el.id,{outline:e.target.checked})} />
                           <label htmlFor={`ol_${el.id}`} style={{ fontSize:13, cursor:"pointer" }}>縁取り</label>
-                          {el.outline&&<>
-                            <input type="color" value={el.outlineColor} onChange={e=>updateEl(el.id,{outlineColor:e.target.value})} style={{ width:32, height:28, borderRadius:6, border:"none", cursor:"pointer" }} />
-                            <input type="range" min="1" max="20" value={el.outlineWidth} onChange={e=>updateEl(el.id,{outlineWidth:Number(e.target.value)})} style={{ flex:1 }} />
-                            <span style={{ fontSize:11, color:C.gray }}>{el.outlineWidth}px</span>
-                          </>}
+                          {el.outline&&<><input type="color" value={el.outlineColor} onChange={e=>updateEl(el.id,{outlineColor:e.target.value})} style={{ width:32, height:28, borderRadius:6, border:"none", cursor:"pointer" }} /><input type="range" min="1" max="20" value={el.outlineWidth} onChange={e=>updateEl(el.id,{outlineWidth:Number(e.target.value)})} style={{ flex:1 }} /><span style={{ fontSize:11, color:C.gray }}>{el.outlineWidth}px</span></>}
                         </div>
                         <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
                           <input type="checkbox" id={`gl_${el.id}`} checked={el.glow} onChange={e=>updateEl(el.id,{glow:e.target.checked})} />
@@ -677,25 +625,18 @@ function DoneScreen({ downloadUrl, onReset, onBack }) {
 
 function drawCanvas(canvas, elements, bgImg, W, H, selectedId, CW, CH) {
   if(!canvas)return;
-  const r=W/CW;
-  const ctx=canvas.getContext("2d");
-  ctx.clearRect(0,0,W,H);
-  ctx.save();
-  ctx.beginPath(); ctx.rect(0,0,W,H); ctx.clip();
+  const r=W/CW; const ctx=canvas.getContext("2d");
+  ctx.clearRect(0,0,W,H); ctx.save(); ctx.beginPath(); ctx.rect(0,0,W,H); ctx.clip();
   if(bgImg){ ctx.drawImage(bgImg,0,0,W,H); }
   else { const g=ctx.createLinearGradient(0,0,W,0); g.addColorStop(0,"rgb(235,97,0)"); g.addColorStop(1,"rgb(241,141,0)"); ctx.fillStyle=g; ctx.fillRect(0,0,W,H); }
-  [...elements].sort((a,b)=>a.zIndex-b.zIndex).forEach(el=>{
-    if(el.type==="image") drawImageEl(ctx,el,r,selectedId===el.id);
-    else drawTextEl(ctx,el,r,selectedId===el.id);
-  });
+  [...elements].sort((a,b)=>a.zIndex-b.zIndex).forEach(el=>{ if(el.type==="image") drawImageEl(ctx,el,r,selectedId===el.id); else drawTextEl(ctx,el,r,selectedId===el.id); });
   ctx.restore();
 }
 
 function drawTextEl(ctx, el, r, isSelected) {
   const font=FONTS.find(f=>f.id===el.font)||FONTS[0];
   const fontSize=TEXT_SIZES[el.size]*el.scale*r;
-  ctx.save();
-  ctx.translate(el.x*r, el.y*r);
+  ctx.save(); ctx.translate(el.x*r, el.y*r);
   if(el.rotate) ctx.rotate(el.rotate*Math.PI/180);
   ctx.font=`${font.weight} ${fontSize}px ${font.family},sans-serif`;
   ctx.fillStyle=el.color;
@@ -707,13 +648,11 @@ function drawTextEl(ctx, el, r, isSelected) {
   };
   if(el.vertical){
     ctx.textAlign="center"; ctx.textBaseline="top";
-    const chars=el.text.split("");
-    const totalH=chars.length*fontSize*1.1;
+    const chars=el.text.split(""); const totalH=chars.length*fontSize*1.1;
     chars.forEach((ch,i)=>drawLine(ch,0,-totalH/2+i*fontSize*1.1));
   } else {
     ctx.textAlign="center"; ctx.textBaseline="middle";
-    const lines=el.text.split("\n");
-    const totalH=lines.length*fontSize*1.3;
+    const lines=el.text.split("\n"); const totalH=lines.length*fontSize*1.3;
     lines.forEach((line,i)=>drawLine(line,0,-totalH/2+(i+0.5)*fontSize*1.3));
   }
   if(isSelected&&!el.locked){
@@ -730,8 +669,7 @@ function drawImageEl(ctx, el, r, isSelected) {
   if(!img){ img=new Image(); img.crossOrigin="anonymous"; img.src=el.src; if(img.complete)imgCache[el.src]=img; }
   if(!img.complete)return;
   const w=el.naturalW*el.scale*r, h=el.naturalH*el.scale*r;
-  ctx.save();
-  ctx.translate(el.x*r,el.y*r);
+  ctx.save(); ctx.translate(el.x*r,el.y*r);
   if(el.rotate) ctx.rotate(el.rotate*Math.PI/180);
   ctx.drawImage(img,-w/2,-h/2,w,h);
   if(isSelected&&!el.locked){ctx.strokeStyle="rgba(235,97,0,0.9)";ctx.lineWidth=2;ctx.setLineDash([6,3]);ctx.strokeRect(-w/2,-h/2,w,h);ctx.setLineDash([]);}
