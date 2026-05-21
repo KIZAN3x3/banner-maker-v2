@@ -594,9 +594,8 @@ function LayerEditor({ bgDataUrl, bgPath, sampleUrl, canvasW, canvasH, elements,
   // ★ダブルクリックでテキスト編集
   const onDoubleClick = (e)=>{
   const{x,y}=getXY(e.clientX,e.clientY);
-  const sorted=[...elements].sort((a,b)=>b.zIndex-a.zIndex);
+  const sorted=[...elements].filter(el=>el&&el.type==="text"&&!el.locked).sort((a,b)=>b.zIndex-a.zIndex);
   for(const el of sorted){
-    if(el.locked||el.type!=="text")continue;
     const dist=Math.sqrt(Math.pow(x-el.x,2)+Math.pow(y-el.y,2));
     if(dist<300/R){
       setSelected(el.id); setEditing(el.id); return;
