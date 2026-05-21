@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+﻿import { useState, useRef, useEffect } from "react";
 
 const ADMIN_PASSWORD     = "123123";
 const GITHUB_OWNER       = "KIZAN3x3";
@@ -80,7 +80,7 @@ function toBase64(file) {
     r.onload=ev=>{
       const img=new Image();
       img.onload=()=>{
-        const MAX=1920;
+        const MAX=800;
         let w=img.width, h=img.height;
         if(w>MAX||h>MAX){
           if(w>h){ h=Math.round(h*MAX/w); w=MAX; }
@@ -671,7 +671,7 @@ function LayerEditor({ bgDataUrl, bgPath, sampleUrl, canvasW, canvasH, elements,
   reader.onload=ev=>{
     const img=new Image();
     img.onload=()=>{
-      const MAX=1920;
+      const MAX=800;
       let w=img.width, h=img.height;
       if(w>MAX||h>MAX){ if(w>h){h=Math.round(h*MAX/w);w=MAX;}else{w=Math.round(w*MAX/h);h=MAX;} }
       const canvas=document.createElement("canvas");
