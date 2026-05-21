@@ -413,6 +413,7 @@ function PreviewScreen({ tab, elements, setElements, selected, setSelected, edit
   // ★ダブルクリックでテキスト編集
   const onDoubleClick = (e)=>{
   const{x,y}=getXY(e.clientX,e.clientY);
+  console.log("dblclick", x, y, elements.map(el=>({id:el.id,type:el.type,x:el.x,y:el.y})));
   const sorted=[...elements].filter(el=>el&&el.type==="text"&&!el.locked).sort((a,b)=>b.zIndex-a.zIndex);
   for(const el of sorted){
     const dist=Math.sqrt(Math.pow(x-el.x,2)+Math.pow(y-el.y,2));
