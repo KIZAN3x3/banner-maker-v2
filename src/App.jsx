@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 
 const fl = document.createElement("link");
 fl.rel = "stylesheet";
-fl.href = "https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@700&family=Zen+Maru+Gothic:wght@400&family=Noto+Serif+JP:wght@400&family=Kosugi+Maru&family=Zen+Kurenaido&display=swap";
+fl.href = "https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@700&family=Zen+Maru+Gothic:wght@400&family=Noto+Serif+JP:wght@400&family=Kosugi&family=Zen+Kurenaido&display=swap";
 document.head.appendChild(fl);
 fl.onload = () => {
   ["Noto Sans JP","Zen Maru Gothic","Noto Serif JP","Kosugi Maru","Zen Kurenaido"].forEach(f=>{
@@ -26,7 +26,7 @@ const FONTS = [
   { id:"noto_sans_bold",  name:"ゴシック（太字）", family:"'Noto Sans JP'",    weight:"700" },
   { id:"zen_maru",        name:"丸ゴシック",        family:"'Zen Maru Gothic'", weight:"400" },
   { id:"noto_serif",      name:"明朝（標準）",       family:"'Noto Serif JP'",  weight:"400" },
-  { id:"kosugi_maru",     name:"コスギ丸",           family:"'Kosugi Maru'",    weight:"400" },
+  { id:"kosugi", name:"コスギ", family:"'Kosugi'", weight:"400" },
   { id:"zen_kurenaido",   name:"禅 紅椿",            family:"'Zen Kurenaido'",  weight:"400" },
 ];
 

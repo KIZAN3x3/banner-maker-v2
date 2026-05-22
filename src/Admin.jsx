@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+﻿import { useState, useRef, useEffect } from "react";
 
 const ADMIN_PASSWORD     = "123123";
 const GITHUB_OWNER       = "KIZAN3x3";
@@ -18,7 +18,7 @@ const FONTS = [
   { id:"noto_sans_bold",  name:"ゴシック（太字）", family:"'Noto Sans JP'",    weight:"700" },
   { id:"zen_maru",        name:"丸ゴシック",        family:"'Zen Maru Gothic'", weight:"400" },
   { id:"noto_serif",      name:"明朝（標準）",       family:"'Noto Serif JP'",  weight:"400" },
-  { id:"kosugi_maru",     name:"コスギ丸",           family:"'Kosugi Maru'",    weight:"400" },
+  { id:"kosugi", name:"コスギ", family:"'Kosugi'", weight:"400" },
   { id:"zen_kurenaido",   name:"禅 紅椿",            family:"'Zen Kurenaido'",  weight:"400" },
 ];
 
