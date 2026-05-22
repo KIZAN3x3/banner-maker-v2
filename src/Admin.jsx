@@ -760,12 +760,32 @@ function LayerEditor({ bgDataUrl, bgPath, sampleUrl, canvasW, canvasH, elements,
                       <input type="color" value={el.color} onChange={e=>updateEl(el.id,{color:e.target.value})} style={{ width:40, height:32, borderRadius:6, border:`1px solid ${C.grayL}`, cursor:"pointer", padding:2 }} />
                       <span style={{ fontSize:11, color:C.gray }}>{el.color}</span>
                     </div>
-                    <div style={{ display:"flex", gap:16, flexWrap:"wrap" }}>
-                      {[["vertical","縦組み"],["shadow","シャドウ"],["outline","縁取り"]].map(([k,lbl])=>(
-                        <label key={k} style={{ display:"flex", alignItems:"center", gap:6, fontSize:12, cursor:"pointer" }}>
-                          <input type="checkbox" checked={!!el[k]} onChange={e=>updateEl(el.id,{[k]:e.target.checked})} />{lbl}
-                        </label>
+                    <label style={LS}>組方向</label>
+                    <div style={{ display:"flex", gap:6, marginBottom:10 }}>
+                      {[[false,"横組み"],[true,"縦組み"]].map(([v,l])=>(
+                        <button key={String(v)} onClick={()=>updateEl(el.id,{vertical:v})} style={{ flex:1, padding:"6px", background:el.vertical===v?C.ink:C.cream, border:`1px solid ${el.vertical===v?C.ink:C.grayL}`, borderRadius:7, fontSize:12, color:el.vertical===v?C.white:C.ink, cursor:"pointer" }}>{l}</button>
                       ))}
+                    </div>
+                    <label style={LS}>エフェクト</label>
+                    <div style={{ display:"flex", flexDirection:"column", gap:8, marginBottom:10 }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                        <input type="checkbox" id={`sh_${el.id}`} checked={!!el.shadow} onChange={e=>updateEl(el.id,{shadow:e.target.checked})} />
+                        <label htmlFor={`sh_${el.id}`} style={{ fontSize:12, cursor:"pointer" }}>ドロップシャドウ</label>
+                      </div>
+                      <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+                        <input type="checkbox" id={`ol_${el.id}`} checked={!!el.outline} onChange={e=>updateEl(el.id,{outline:e.target.checked})} />
+                        <label htmlFor={`ol_${el.id}`} style={{ fontSize:12, cursor:"pointer" }}>縁取り</label>
+                        {el.outline&&<>
+                          <input type="color" value={el.outlineColor||"#000000"} onChange={e=>updateEl(el.id,{outlineColor:e.target.value})} style={{ width:32, height:28, borderRadius:6, border:"none", cursor:"pointer" }} />
+                          <input type="range" min="1" max="20" value={el.outlineWidth||4} onChange={e=>updateEl(el.id,{outlineWidth:Number(e.target.value)})} style={{ flex:1 }} />
+                          <span style={{ fontSize:11, color:C.gray }}>{el.outlineWidth||4}px</span>
+                        </>}
+                      </div>
+                      <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+                        <input type="checkbox" id={`gl_${el.id}`} checked={!!el.glow} onChange={e=>updateEl(el.id,{glow:e.target.checked})} />
+                        <label htmlFor={`gl_${el.id}`} style={{ fontSize:12, cursor:"pointer" }}>外光（グロー）</label>
+                        {el.glow&&<input type="color" value={el.glowColor||"#FF6600"} onChange={e=>updateEl(el.id,{glowColor:e.target.value})} style={{ width:32, height:28, borderRadius:6, border:"none", cursor:"pointer" }} />}
+                      </div>
                     </div>
                   </div>
                 )}
