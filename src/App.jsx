@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 
 const fl = document.createElement("link");
 fl.rel = "stylesheet";
-fl.href = "https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@700&family=Zen+Maru+Gothic:wght@400&family=Noto+Serif+JP:wght@400&family=Kosugi&family=Zen+Kurenaido&display=swap";
+fl.href = "https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@700&family=Zen+Maru+Gothic:wght@400&family=Noto+Serif+JP:wght@400&family=Kosugi&family=Zen+Kurenaido&family=LINE+Seed+JP:wght@700&display=swap";
 document.head.appendChild(fl);
 fl.onload = () => {
   ["Noto Sans JP","Zen Maru Gothic","Noto Serif JP","Kosugi Maru","Zen Kurenaido"].forEach(f=>{
