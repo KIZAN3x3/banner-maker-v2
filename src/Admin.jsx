@@ -1,4 +1,4 @@
-﻿import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 
 const ADMIN_PASSWORD     = "123123";
 const GITHUB_OWNER       = "KIZAN3x3";
@@ -15,12 +15,11 @@ const C = {
 };
 
 const FONTS = [
-  { id:"noto_sans_bold",  name:"ゴシック（太字）",  family:"'Noto Sans JP'",    weight:"700" },
-  { id:"zen_maru",        name:"丸ゴシック",         family:"'Zen Maru Gothic'", weight:"400" },
-  { id:"noto_serif",      name:"明朝（標準）",        family:"'Noto Serif JP'",   weight:"400" },
-  { id:"line_seed",       name:"LINE Seed JP",        family:"'LINE Seed JP'",    weight:"700" },
-  { id:"kosugi_maru",     name:"コスギ丸",            family:"'Kosugi Maru'",     weight:"400" },
-  { id:"zen_kurenaido",   name:"禅 紅椿",             family:"'Zen Kurenaido'",   weight:"400" },
+  { id:"noto_sans_bold",  name:"ゴシック（太字）", family:"'Noto Sans JP'",    weight:"700" },
+  { id:"zen_maru",        name:"丸ゴシック",        family:"'Zen Maru Gothic'", weight:"400" },
+  { id:"noto_serif",      name:"明朝（標準）",       family:"'Noto Serif JP'",  weight:"400" },
+  { id:"kosugi_maru",     name:"コスギ丸",           family:"'Kosugi Maru'",    weight:"400" },
+  { id:"zen_kurenaido",   name:"禅 紅椿",            family:"'Zen Kurenaido'",  weight:"400" },
 ];
 
 const TEXT_SIZES = { large:120, medium:72, small:40 };
@@ -72,7 +71,6 @@ async function ghGetContent(path) {
   return res.json();
 }
 
-// ★画像自動圧縮付きtoBase64
 function toBase64(file) {
   return new Promise((res,rej)=>{
     const r=new FileReader();
@@ -81,10 +79,7 @@ function toBase64(file) {
       img.onload=()=>{
         const MAX=800;
         let w=img.width, h=img.height;
-        if(w>MAX||h>MAX){
-          if(w>h){ h=Math.round(h*MAX/w); w=MAX; }
-          else { w=Math.round(w*MAX/h); h=MAX; }
-        }
+        if(w>MAX||h>MAX){ if(w>h){h=Math.round(h*MAX/w);w=MAX;}else{w=Math.round(w*MAX/h);h=MAX;} }
         const canvas=document.createElement("canvas");
         canvas.width=w; canvas.height=h;
         canvas.getContext("2d").drawImage(img,0,0,w,h);
@@ -125,25 +120,18 @@ async function triggerDeploy() {
 
 function drawCanvas(canvas, elements, bgImg, W, H, selectedId, CW, CH) {
   if(!canvas)return;
-  const r=W/CW;
-  const ctx=canvas.getContext("2d");
-  ctx.clearRect(0,0,W,H);
-  ctx.save();
-  ctx.beginPath(); ctx.rect(0,0,W,H); ctx.clip();
+  const r=W/CW; const ctx=canvas.getContext("2d");
+  ctx.clearRect(0,0,W,H); ctx.save(); ctx.beginPath(); ctx.rect(0,0,W,H); ctx.clip();
   if(bgImg){ ctx.drawImage(bgImg,0,0,W,H); }
   else { const g=ctx.createLinearGradient(0,0,W,0); g.addColorStop(0,"rgb(235,97,0)"); g.addColorStop(1,"rgb(241,141,0)"); ctx.fillStyle=g; ctx.fillRect(0,0,W,H); }
-  [...elements].sort((a,b)=>a.zIndex-b.zIndex).forEach(el=>{
-    if(el.type==="image") drawImageEl(ctx,el,r,selectedId===el.id);
-    else drawTextEl(ctx,el,r,selectedId===el.id);
-  });
+  [...elements].sort((a,b)=>a.zIndex-b.zIndex).forEach(el=>{ if(el.type==="image") drawImageEl(ctx,el,r,selectedId===el.id); else drawTextEl(ctx,el,r,selectedId===el.id); });
   ctx.restore();
 }
 
 function drawTextEl(ctx, el, r, isSelected) {
   const font=FONTS.find(f=>f.id===el.font)||FONTS[0];
   const fontSize=(TEXT_SIZES[el.size]||72)*el.scale*r;
-  ctx.save();
-  ctx.translate(el.x*r, el.y*r);
+  ctx.save(); ctx.translate(el.x*r, el.y*r);
   if(el.rotate) ctx.rotate(el.rotate*Math.PI/180);
   ctx.font=`${font.weight} ${fontSize}px ${font.family},sans-serif`;
   const drawLine=(text,x,y)=>{
@@ -153,13 +141,11 @@ function drawTextEl(ctx, el, r, isSelected) {
   };
   if(el.vertical){
     ctx.textAlign="center"; ctx.textBaseline="top";
-    const chars=el.text.split("");
-    const totalH=chars.length*fontSize*1.1;
+    const chars=el.text.split(""); const totalH=chars.length*fontSize*1.1;
     chars.forEach((ch,i)=>drawLine(ch,0,-totalH/2+i*fontSize*1.1));
   } else {
     ctx.textAlign="center"; ctx.textBaseline="middle";
-    const lines=el.text.split("\n");
-    const totalH=lines.length*fontSize*1.3;
+    const lines=el.text.split("\n"); const totalH=lines.length*fontSize*1.3;
     lines.forEach((line,i)=>drawLine(line,0,-totalH/2+(i+0.5)*fontSize*1.3));
   }
   if(isSelected){
@@ -175,8 +161,7 @@ function drawImageEl(ctx, el, r, isSelected) {
   if(!img){ img=new Image(); img.crossOrigin="anonymous"; img.src=el.src; if(img.complete)imgCache[el.src]=img; }
   if(!img.complete)return;
   const w=el.naturalW*el.scale*r, h=el.naturalH*el.scale*r;
-  ctx.save();
-  ctx.translate(el.x*r,el.y*r);
+  ctx.save(); ctx.translate(el.x*r,el.y*r);
   if(el.rotate) ctx.rotate(el.rotate*Math.PI/180);
   ctx.drawImage(img,-w/2,-h/2,w,h);
   if(isSelected){ctx.strokeStyle="rgba(235,97,0,0.9)";ctx.lineWidth=2;ctx.setLineDash([6,3]);ctx.strokeRect(-w/2,-h/2,w,h);ctx.setLineDash([]);}
@@ -238,7 +223,6 @@ function TemplateAdmin() {
     catch(e) { setLoadErr("読み込みエラー: "+e.message); setTemplates([]); }
   };
 
-  // ★テンプレート並び替え
   const moveTemplate = (idx, dir) => {
     setTemplates(prev=>{
       const arr=[...prev];
@@ -281,18 +265,11 @@ function TemplateAdmin() {
   if (templates===null) return <div style={{ textAlign:"center", padding:60 }}><Spinner size={36}/></div>;
 
   if (mode==="create") return (
-    <TemplateWizard
-      onDone={(newTmpl)=>{ setTemplates(prev=>[...(prev||[]),newTmpl]); setMode("list"); }}
-      onCancel={()=>setMode("list")}
-    />
+    <TemplateWizard onDone={(newTmpl)=>{ setTemplates(prev=>[...(prev||[]),newTmpl]); setMode("list"); }} onCancel={()=>setMode("list")} />
   );
 
   if (mode==="edit"&&editTarget) return (
-    <TemplateEditor
-      tmpl={editTarget}
-      onDone={(updated)=>{ setTemplates(prev=>prev.map(t=>t.id===updated.id?updated:t)); setMode("list"); }}
-      onCancel={()=>setMode("list")}
-    />
+    <TemplateEditor tmpl={editTarget} onDone={(updated)=>{ setTemplates(prev=>prev.map(t=>t.id===updated.id?updated:t)); setMode("list"); }} onCancel={()=>setMode("list")} />
   );
 
   return (
@@ -300,12 +277,8 @@ function TemplateAdmin() {
       {loadErr&&<p style={{ color:C.red, fontSize:12, marginBottom:12, background:"#FEF2F2", padding:"10px 14px", borderRadius:8 }}>⚠️ {loadErr}</p>}
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:20 }}>
         <p style={{ margin:0, fontSize:16, fontWeight:700 }}>テンプレート一覧（{templates.length}件）</p>
-        <button onClick={()=>setMode("create")}
-          style={{ padding:"10px 20px", background:`linear-gradient(135deg,${C.g1},${C.g2})`, border:"none", borderRadius:10, color:C.white, fontSize:13, fontWeight:700, cursor:"pointer" }}>
-          ＋ テンプレを追加
-        </button>
+        <button onClick={()=>setMode("create")} style={{ padding:"10px 20px", background:`linear-gradient(135deg,${C.g1},${C.g2})`, border:"none", borderRadius:10, color:C.white, fontSize:13, fontWeight:700, cursor:"pointer" }}>＋ テンプレを追加</button>
       </div>
-
       {templates.length===0 ? (
         <div style={{ textAlign:"center", padding:"60px 0", color:C.gray }}>
           <div style={{ fontSize:48, marginBottom:12 }}>📋</div>
@@ -317,35 +290,21 @@ function TemplateAdmin() {
           <div style={{ display:"flex", flexDirection:"column", gap:10, marginBottom:16 }}>
             {templates.map((tmpl,idx)=>(
               <div key={tmpl.id} style={{ background:C.white, borderRadius:14, border:`1px solid ${C.grayLL}`, padding:"14px 16px", display:"flex", alignItems:"center", gap:12 }}>
-                <img src={`${RAW_BASE}${tmpl.sample}?t=${tmpl.id}`} alt=""
-                  onError={e=>e.target.style.visibility="hidden"}
+                <img src={`${RAW_BASE}${tmpl.sample}?t=${tmpl.id}`} alt="" onError={e=>e.target.style.visibility="hidden"}
                   style={{ width:44, height:60, objectFit:"cover", borderRadius:8, border:`1px solid ${C.grayLL}`, flexShrink:0, background:C.grayLL }} />
                 <div style={{ flex:1, minWidth:0 }}>
                   <p style={{ margin:0, fontSize:15, fontWeight:700, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{tmpl.label}</p>
-                  <p style={{ margin:"3px 0 0", fontSize:11, color:C.gray }}>
-                    {SNS_SIZES.find(s=>s.w===tmpl.w&&s.h===tmpl.h)?.label||"カスタム"}　{tmpl.w}×{tmpl.h}px
-                  </p>
+                  <p style={{ margin:"3px 0 0", fontSize:11, color:C.gray }}>{SNS_SIZES.find(s=>s.w===tmpl.w&&s.h===tmpl.h)?.label||"カスタム"}　{tmpl.w}×{tmpl.h}px</p>
                 </div>
-                {/* ★並び替えボタン */}
-                <button onClick={()=>moveTemplate(idx,"up")} disabled={idx===0}
-                  style={{ padding:"5px 9px", background:C.cream, border:`1px solid ${C.grayL}`, borderRadius:7, color:idx===0?C.grayL:C.ink, fontSize:12, cursor:idx===0?"default":"pointer", flexShrink:0 }}>↑</button>
-                <button onClick={()=>moveTemplate(idx,"down")} disabled={idx===templates.length-1}
-                  style={{ padding:"5px 9px", background:C.cream, border:`1px solid ${C.grayL}`, borderRadius:7, color:idx===templates.length-1?C.grayL:C.ink, fontSize:12, cursor:idx===templates.length-1?"default":"pointer", flexShrink:0 }}>↓</button>
-                <button onClick={()=>{ setEditTarget(tmpl); setMode("edit"); }}
-                  style={{ padding:"7px 14px", background:C.cream, border:`1px solid ${C.grayL}`, borderRadius:8, color:C.ink, fontSize:12, fontWeight:700, cursor:"pointer", flexShrink:0 }}>
-                  編集
-                </button>
-                <button onClick={()=>handleDelete(tmpl)}
-                  style={{ padding:"7px 12px", background:"none", border:`1px solid ${C.red}`, borderRadius:8, color:C.red, fontSize:12, cursor:"pointer", flexShrink:0 }}>
-                  削除
-                </button>
+                <button onClick={()=>moveTemplate(idx,"up")} disabled={idx===0} style={{ padding:"5px 9px", background:C.cream, border:`1px solid ${C.grayL}`, borderRadius:7, color:idx===0?C.grayL:C.ink, fontSize:12, cursor:idx===0?"default":"pointer", flexShrink:0 }}>↑</button>
+                <button onClick={()=>moveTemplate(idx,"down")} disabled={idx===templates.length-1} style={{ padding:"5px 9px", background:C.cream, border:`1px solid ${C.grayL}`, borderRadius:7, color:idx===templates.length-1?C.grayL:C.ink, fontSize:12, cursor:idx===templates.length-1?"default":"pointer", flexShrink:0 }}>↓</button>
+                <button onClick={()=>{ setEditTarget(tmpl); setMode("edit"); }} style={{ padding:"7px 14px", background:C.cream, border:`1px solid ${C.grayL}`, borderRadius:8, color:C.ink, fontSize:12, fontWeight:700, cursor:"pointer", flexShrink:0 }}>編集</button>
+                <button onClick={()=>handleDelete(tmpl)} style={{ padding:"7px 12px", background:"none", border:`1px solid ${C.red}`, borderRadius:8, color:C.red, fontSize:12, cursor:"pointer", flexShrink:0 }}>削除</button>
               </div>
             ))}
           </div>
-          {/* ★順番保存ボタン */}
           <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-            <button onClick={saveOrder} disabled={reordering}
-              style={{ padding:"10px 20px", background:reordering?C.grayL:`linear-gradient(135deg,${C.g1},${C.g2})`, border:"none", borderRadius:10, color:C.white, fontSize:13, fontWeight:700, cursor:reordering?"not-allowed":"pointer", display:"flex", alignItems:"center", gap:8 }}>
+            <button onClick={saveOrder} disabled={reordering} style={{ padding:"10px 20px", background:reordering?C.grayL:`linear-gradient(135deg,${C.g1},${C.g2})`, border:"none", borderRadius:10, color:C.white, fontSize:13, fontWeight:700, cursor:reordering?"not-allowed":"pointer", display:"flex", alignItems:"center", gap:8 }}>
               {reordering?<><Spinner size={14} color={C.white}/>保存中...</>:"✦ 並び順を保存する"}
             </button>
             {saveMsg&&<span style={{ fontSize:12, color:saveMsg.startsWith("✅")?C.green:C.red }}>{saveMsg}</span>}
@@ -415,7 +374,6 @@ function TemplateWizard({ onDone, onCancel }) {
           ))}
         </div>
       </div>
-
       {step===1&&(
         <div style={{ background:C.white, borderRadius:16, padding:"20px", border:`1px solid ${C.grayLL}`, animation:"fadeUp 0.2s ease" }}>
           <p style={{ margin:"0 0 16px", fontSize:15, fontWeight:700 }}>Step1：基本情報を入力</p>
@@ -434,21 +392,13 @@ function TemplateWizard({ onDone, onCancel }) {
           <label style={{ ...LS, marginTop:12 }}>② 背景画像（ベース）</label>
           <DropZone preview={bgPrev} onFile={f=>{ setBgFile(f); setBgPrev(URL.createObjectURL(f)); }} label="背景画像をドロップ / タップして選択" />
           {msg&&<p style={{ color:C.red, fontSize:12, margin:"10px 0 0" }}>{msg}</p>}
-          <button onClick={goStep2} style={{ width:"100%", marginTop:16, padding:"14px", background:`linear-gradient(135deg,${C.g1},${C.g2})`, border:"none", borderRadius:12, color:C.white, fontSize:14, fontWeight:700, cursor:"pointer" }}>
-            次へ → レイヤー編集
-          </button>
+          <button onClick={goStep2} style={{ width:"100%", marginTop:16, padding:"14px", background:`linear-gradient(135deg,${C.g1},${C.g2})`, border:"none", borderRadius:12, color:C.white, fontSize:14, fontWeight:700, cursor:"pointer" }}>次へ → レイヤー編集</button>
         </div>
       )}
-
       {step===2&&(
-        <LayerEditor
-          bgDataUrl={bgPrev} bgPath={null} sampleUrl={samplePrev}
-          canvasW={size.w} canvasH={size.h}
-          elements={elements} setElements={setElements}
-          saving={saving} msg={msg}
-          onBack={()=>setStep(1)} onSave={save}
-          saveLabel="✦ テンプレートとして登録する"
-        />
+        <LayerEditor bgDataUrl={bgPrev} bgPath={null} sampleUrl={samplePrev} canvasW={size.w} canvasH={size.h}
+          elements={elements} setElements={setElements} saving={saving} msg={msg}
+          onBack={()=>setStep(1)} onSave={save} saveLabel="✦ テンプレートとして登録する" />
       )}
     </div>
   );
@@ -513,53 +463,46 @@ function TemplateEditor({ tmpl, onDone, onCancel }) {
           </button>
         ))}
       </div>
-
       {step===1&&(
         <div style={{ background:C.white, borderRadius:16, padding:"20px", border:`1px solid ${C.grayLL}`, animation:"fadeUp 0.2s ease" }}>
           <label style={LS}>テンプレート名</label>
           <input value={label} onChange={e=>setLabel(e.target.value)} style={IS} />
           <label style={LS}>お手本画像を差し替え（任意）</label>
           <div style={{ display:"flex", gap:10, alignItems:"flex-start", marginBottom:12 }}>
-            <img src={`${RAW_BASE}${tmpl.sample}?t=${Date.now()}`} alt=""
-              style={{ width:48, height:68, objectFit:"cover", borderRadius:6, border:`1px solid ${C.grayLL}`, background:C.grayLL, flexShrink:0 }} />
+            <img src={`${RAW_BASE}${tmpl.sample}?t=${Date.now()}`} alt="" style={{ width:48, height:68, objectFit:"cover", borderRadius:6, border:`1px solid ${C.grayLL}`, background:C.grayLL, flexShrink:0 }} />
             <div style={{ flex:1 }}><DropZone preview={samplePrev} onFile={f=>{ setSampleFile(f); setSamplePrev(URL.createObjectURL(f)); }} label="新しい画像を選択" /></div>
           </div>
           <label style={LS}>背景画像を差し替え（任意）</label>
           <div style={{ display:"flex", gap:10, alignItems:"flex-start", marginBottom:12 }}>
-            <img src={`${RAW_BASE}${tmpl.bg}?t=${Date.now()}`} alt=""
-              style={{ width:48, height:68, objectFit:"cover", borderRadius:6, border:`1px solid ${C.grayLL}`, background:C.grayLL, flexShrink:0 }} />
+            <img src={`${RAW_BASE}${tmpl.bg}?t=${Date.now()}`} alt="" style={{ width:48, height:68, objectFit:"cover", borderRadius:6, border:`1px solid ${C.grayLL}`, background:C.grayLL, flexShrink:0 }} />
             <div style={{ flex:1 }}><DropZone preview={bgPrev} onFile={f=>{ setBgFile(f); setBgPrev(URL.createObjectURL(f)); }} label="新しい画像を選択" /></div>
           </div>
-          <button onClick={goStep2} style={{ width:"100%", padding:"13px", background:`linear-gradient(135deg,${C.g1},${C.g2})`, border:"none", borderRadius:12, color:C.white, fontSize:14, fontWeight:700, cursor:"pointer" }}>
-            次へ → レイヤー編集
-          </button>
+          <button onClick={goStep2} style={{ width:"100%", padding:"13px", background:`linear-gradient(135deg,${C.g1},${C.g2})`, border:"none", borderRadius:12, color:C.white, fontSize:14, fontWeight:700, cursor:"pointer" }}>次へ → レイヤー編集</button>
         </div>
       )}
-
       {step===2&&(
-        <LayerEditor
-          bgDataUrl={bgPrev} bgPath={`${RAW_BASE}${tmpl.bg}`}
+        <LayerEditor bgDataUrl={bgPrev} bgPath={`${RAW_BASE}${tmpl.bg}`}
           sampleUrl={samplePrev || `${RAW_BASE}${tmpl.sample}`}
           canvasW={tmpl.w||1080} canvasH={tmpl.h||1920}
           elements={elements} setElements={setElements}
           saving={saving} msg={msg}
-          onBack={()=>setStep(1)} onSave={save}
-          saveLabel="✦ 更新して保存する"
-        />
+          onBack={()=>setStep(1)} onSave={save} saveLabel="✦ 更新して保存する" />
       )}
     </div>
   );
 }
 
 function LayerEditor({ bgDataUrl, bgPath, sampleUrl, canvasW, canvasH, elements, setElements, saving, msg, onBack, onSave, saveLabel }) {
-  const [selected, setSelected] = useState(null);
-  const [editing,  setEditing]  = useState(null);
-  const [bgImg,    setBgImg]    = useState(null);
+  const [selected,   setSelected]   = useState(null);
+  const [editing,    setEditing]    = useState(null);
+  const [bgImg,      setBgImg]      = useState(null);
+  const [inlineEdit, setInlineEdit] = useState(null);
 
   const canvasRef   = useRef(null);
   const dragging    = useRef(null);
   const pinchRef    = useRef({ lastDist:null });
   const lastTap     = useRef(0);
+  const lastClick   = useRef(0);
   const imgInputRef = useRef();
 
   const CW = canvasW || 1080;
@@ -579,8 +522,7 @@ function LayerEditor({ bgDataUrl, bgPath, sampleUrl, canvasW, canvasH, elements,
 
   useEffect(()=>{
     if(!canvasRef.current)return;
-    canvasRef.current.width=PW;
-    canvasRef.current.height=PH;
+    canvasRef.current.width=PW; canvasRef.current.height=PH;
     drawCanvas(canvasRef.current, elements, bgImg, PW, PH, selected, CW, CH);
   },[elements, bgImg, selected, PW, PH, CW, CH]);
 
@@ -590,20 +532,32 @@ function LayerEditor({ bgDataUrl, bgPath, sampleUrl, canvasW, canvasH, elements,
     return{x:(cx-rect.left)/R, y:(cy-rect.top)/R};
   };
 
-  // ★ダブルクリックでテキスト編集
-  const onDoubleClick = (e)=>{
-  const{x,y}=getXY(e.clientX,e.clientY);
-  console.log("dblclick", x, y, elements.map(el=>({id:el.id,type:el.type,x:el.x,y:el.y})));
-  const sorted=[...elements].filter(el=>el&&el.type==="text"&&!el.locked).sort((a,b)=>b.zIndex-a.zIndex);
-  for(const el of sorted){
-    const dist=Math.sqrt(Math.pow(x-el.x,2)+Math.pow(y-el.y,2));
-    if(dist<500/R){
-      setSelected(el.id); setEditing(el.id); return;
+  const activateInlineEdit = (cx, cy)=>{
+    const{x,y}=getXY(cx,cy);
+    const sorted=[...elements].filter(el=>el&&el.type==="text").sort((a,b)=>b.zIndex-a.zIndex);
+    for(const el of sorted){
+      const dist=Math.sqrt(Math.pow(x-el.x,2)+Math.pow(y-el.y,2));
+      if(dist<200){
+        setSelected(el.id);
+        const fs=(TEXT_SIZES[el.size]||72)*el.scale*R;
+        const lines=el.text.split("\n");
+        const w=Math.max(120, Math.max(...lines.map(l=>l.length))*fs*0.65);
+        const h=Math.max(fs*1.5, lines.length*fs*1.4);
+        setInlineEdit({ id:el.id, x:el.x*R, y:el.y*R, w, h, fs, font:el.font, color:el.color });
+        return true;
+      }
     }
-  }
-};
+    return false;
+  };
+
+  const onCanvasClick = (e)=>{
+    const now=Date.now();
+    if(now-lastClick.current<400){ activateInlineEdit(e.clientX, e.clientY); lastClick.current=0; }
+    else { lastClick.current=now; }
+  };
 
   const onMouseDown = (e)=>{
+    if(inlineEdit)return;
     if(!selected)return;
     const el=elements.find(el=>el.id===selected); if(!el)return;
     const{x,y}=getXY(e.clientX,e.clientY);
@@ -622,11 +576,8 @@ function LayerEditor({ bgDataUrl, bgPath, sampleUrl, canvasW, canvasH, elements,
       pinchRef.current.lastDist=Math.sqrt(dx*dx+dy*dy);
     } else {
       const now=Date.now();
-      if(now-lastTap.current<300){
-        onDoubleClick({clientX:e.touches[0].clientX,clientY:e.touches[0].clientY});
-      }
-      lastTap.current=now;
-      onMouseDown({clientX:e.touches[0].clientX,clientY:e.touches[0].clientY});
+      if(now-lastTap.current<300){ activateInlineEdit(e.touches[0].clientX, e.touches[0].clientY); lastTap.current=0; }
+      else { lastTap.current=now; onMouseDown({clientX:e.touches[0].clientX,clientY:e.touches[0].clientY}); }
     }
   };
   const onTouchMove = (e)=>{
@@ -634,10 +585,7 @@ function LayerEditor({ bgDataUrl, bgPath, sampleUrl, canvasW, canvasH, elements,
     if(e.touches.length===2&&selected){
       const dx=e.touches[0].clientX-e.touches[1].clientX, dy=e.touches[0].clientY-e.touches[1].clientY;
       const dist=Math.sqrt(dx*dx+dy*dy);
-      if(pinchRef.current.lastDist){
-        const ratio=dist/pinchRef.current.lastDist;
-        setElements(els=>els.map(el=>el.id===selected?{...el,scale:Math.min(Math.max(el.scale*ratio,0.05),10)}:el));
-      }
+      if(pinchRef.current.lastDist){ const ratio=dist/pinchRef.current.lastDist; setElements(els=>els.map(el=>el.id===selected?{...el,scale:Math.min(Math.max(el.scale*ratio,0.05),10)}:el)); }
       pinchRef.current.lastDist=dist;
     } else onMouseMove({clientX:e.touches[0].clientX,clientY:e.touches[0].clientY});
   };
@@ -661,36 +609,36 @@ function LayerEditor({ bgDataUrl, bgPath, sampleUrl, canvasW, canvasH, elements,
   };
 
   const addTextEl = ()=>{
-    const el={ id:uid(), type:"text", text:"テキストを入力", font:"noto_sans", size:"medium", color:"#FFFFFF", vertical:false, shadow:false, outline:false, outlineColor:"#000000", outlineWidth:4, glow:false, glowColor:"#FF6600", x:CW/2, y:CH/2, scale:1, rotate:0, zIndex:elements.length, locked:false };
+    const el={ id:uid(), type:"text", text:"テキストを入力", font:"noto_sans_bold", size:"medium", color:"#FFFFFF", vertical:false, shadow:false, outline:false, outlineColor:"#000000", outlineWidth:4, glow:false, glowColor:"#FF6600", x:CW/2, y:CH/2, scale:1, rotate:0, zIndex:elements.length, locked:false };
     setElements(e=>[...e,el]); setSelected(el.id); setEditing(el.id);
   };
 
   const addImageEl = (file)=>{
-  const reader=new FileReader();
-  reader.onload=ev=>{
-    const img=new Image();
-    img.onload=()=>{
-      const MAX=800;
-      let w=img.width, h=img.height;
-      if(w>MAX||h>MAX){ if(w>h){h=Math.round(h*MAX/w);w=MAX;}else{w=Math.round(w*MAX/h);h=MAX;} }
-      const canvas=document.createElement("canvas");
-      canvas.width=w; canvas.height=h;
-      canvas.getContext("2d").drawImage(img,0,0,w,h);
-      const src=canvas.toDataURL("image/png");
-      const el={ id:uid(), type:"image", src, naturalW:w, naturalH:h, x:CW/2, y:CH/2, scale:0.3, rotate:0, zIndex:elements.length, locked:false };
-      setElements(e=>[...e,el]); setSelected(el.id);
+    const reader=new FileReader();
+    reader.onload=ev=>{
+      const img=new Image();
+      img.onload=()=>{
+        const MAX=800;
+        let w=img.width, h=img.height;
+        if(w>MAX||h>MAX){ if(w>h){h=Math.round(h*MAX/w);w=MAX;}else{w=Math.round(w*MAX/h);h=MAX;} }
+        const canvas=document.createElement("canvas");
+        canvas.width=w; canvas.height=h;
+        canvas.getContext("2d").drawImage(img,0,0,w,h);
+        const src=canvas.toDataURL("image/png");
+        const el={ id:uid(), type:"image", src, naturalW:w, naturalH:h, x:CW/2, y:CH/2, scale:0.3, rotate:0, zIndex:elements.length, locked:false };
+        setElements(e=>[...e,el]); setSelected(el.id);
+      };
+      img.src=ev.target.result;
     };
-    img.src=ev.target.result;
+    reader.readAsDataURL(file);
   };
-  reader.readAsDataURL(file);
-};
 
   const sortedEls = [...elements].sort((a,b)=>b.zIndex-a.zIndex);
 
   return (
     <div style={{ animation:"fadeUp 0.2s ease" }}>
       <p style={{ margin:"0 0 10px", fontSize:12, color:C.gray, textAlign:"center" }}>
-        ドラッグで移動　ピンチで拡縮　ダブルクリックでテキスト編集　🔒固定にするとユーザーが操作できません
+        ドラッグで移動　ピンチで拡縮　🔒固定にするとユーザーが操作できません
       </p>
 
       {sampleUrl&&(
@@ -703,12 +651,24 @@ function LayerEditor({ bgDataUrl, bgPath, sampleUrl, canvasW, canvasH, elements,
       )}
 
       <div style={{ display:"flex", justifyContent:"center", marginBottom:12 }}>
-        <div style={{ border:`2px solid ${selected?C.g1:C.grayL}`, borderRadius:6, overflow:"hidden", boxShadow:`0 6px 24px rgba(0,0,0,0.15)` }}>
+        <div style={{ position:"relative", border:`2px solid ${selected?C.g1:C.grayL}`, borderRadius:6, overflow:"hidden", boxShadow:`0 6px 24px rgba(0,0,0,0.15)` }}>
           <canvas ref={canvasRef} width={PW} height={PH}
             onMouseDown={onMouseDown} onMouseMove={onMouseMove} onMouseUp={onMouseUp} onMouseLeave={onMouseUp}
-            onDoubleClick={onDoubleClick}
+            onClick={onCanvasClick}
             onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
             style={{ display:"block", cursor:selected?"grab":"default", touchAction:"none", userSelect:"none" }} />
+          {inlineEdit&&(()=>{
+            const el=elements.find(el=>el.id===inlineEdit.id);
+            if(!el)return null;
+            const font=FONTS.find(f=>f.id===el.font)||FONTS[0];
+            return (
+              <textarea autoFocus value={el.text}
+                onChange={e=>updateEl(el.id,{text:e.target.value})}
+                onBlur={()=>setInlineEdit(null)}
+                onKeyDown={e=>{ if(e.key==="Escape")setInlineEdit(null); }}
+                style={{ position:"absolute", left:Math.max(0,inlineEdit.x-inlineEdit.w/2), top:Math.max(0,inlineEdit.y-inlineEdit.h/2), width:Math.min(inlineEdit.w,PW), minHeight:inlineEdit.h, fontSize:inlineEdit.fs, fontFamily:font.family+",sans-serif", fontWeight:font.weight, color:el.color, background:"rgba(0,0,0,0.5)", border:`2px solid ${C.g1}`, borderRadius:4, outline:"none", resize:"none", textAlign:"center", padding:"4px", lineHeight:1.3, boxSizing:"border-box", zIndex:10, caretColor:C.white, overflow:"hidden" }} />
+            );
+          })()}
         </div>
       </div>
       <p style={{ textAlign:"center", fontSize:10, color:C.gray, marginBottom:12 }}>
@@ -719,8 +679,7 @@ function LayerEditor({ bgDataUrl, bgPath, sampleUrl, canvasW, canvasH, elements,
         <button onClick={addTextEl} style={{ flex:1, padding:"10px", background:C.g1, border:"none", borderRadius:9, color:C.white, fontSize:12, fontWeight:700, cursor:"pointer" }}>＋ テキスト</button>
         <label style={{ flex:1, padding:"10px", background:C.blue, border:"none", borderRadius:9, color:C.white, fontSize:12, fontWeight:700, cursor:"pointer", textAlign:"center" }}>
           ＋ 画像
-          <input ref={imgInputRef} type="file" accept="image/*" style={{ display:"none" }}
-            onChange={e=>{ if(e.target.files[0])addImageEl(e.target.files[0]); e.target.value=""; }} />
+          <input ref={imgInputRef} type="file" accept="image/*" style={{ display:"none" }} onChange={e=>{ if(e.target.files[0])addImageEl(e.target.files[0]); e.target.value=""; }} />
         </label>
       </div>
 
@@ -765,13 +724,11 @@ function LayerEditor({ bgDataUrl, bgPath, sampleUrl, canvasW, canvasH, elements,
                     <div style={{ display:"flex", gap:8 }}>
                       <div style={{ flex:1 }}>
                         <label style={{ fontSize:10, color:C.gray }}>X座標</label>
-                        <input type="number" value={Math.round(el.x)} onChange={e=>updateEl(el.id,{x:Number(e.target.value)})}
-                          style={{ width:"100%", padding:"4px 8px", background:C.white, border:`1px solid ${C.grayL}`, borderRadius:6, fontSize:12, color:C.ink, outline:"none" }} />
+                        <input type="number" value={Math.round(el.x)} onChange={e=>updateEl(el.id,{x:Number(e.target.value)})} style={{ width:"100%", padding:"4px 8px", background:C.white, border:`1px solid ${C.grayL}`, borderRadius:6, fontSize:12, color:C.ink, outline:"none" }} />
                       </div>
                       <div style={{ flex:1 }}>
                         <label style={{ fontSize:10, color:C.gray }}>Y座標</label>
-                        <input type="number" value={Math.round(el.y)} onChange={e=>updateEl(el.id,{y:Number(e.target.value)})}
-                          style={{ width:"100%", padding:"4px 8px", background:C.white, border:`1px solid ${C.grayL}`, borderRadius:6, fontSize:12, color:C.ink, outline:"none" }} />
+                        <input type="number" value={Math.round(el.y)} onChange={e=>updateEl(el.id,{y:Number(e.target.value)})} style={{ width:"100%", padding:"4px 8px", background:C.white, border:`1px solid ${C.grayL}`, borderRadius:6, fontSize:12, color:C.ink, outline:"none" }} />
                       </div>
                     </div>
                   </div>
@@ -831,25 +788,16 @@ function LayerEditor({ bgDataUrl, bgPath, sampleUrl, canvasW, canvasH, elements,
 function SliderRow({ label, min, max, step=1, value, onChange, unit, display, onReset }) {
   const isPercent = unit === "%";
   const shownVal = isPercent ? Math.round(value * 100) : (display !== undefined ? display : value);
-
   const handleInput = (raw) => {
-    const n = Number(raw);
-    if (isNaN(n)) return;
+    const n = Number(raw); if (isNaN(n)) return;
     const actual = isPercent ? Math.min(Math.max(n / 100, min), max) : Math.min(Math.max(n, min), max);
     onChange(actual);
   };
-
   return (
     <div style={{ display:"flex", alignItems:"center", gap:6 }}>
       <span style={{ fontSize:11, color:C.gray, width:56, flexShrink:0 }}>{label}</span>
-      <input type="range" min={min} max={max} step={step} value={value}
-        onChange={e=>onChange(Number(e.target.value))} style={{ flex:1, accentColor:C.g1 }} />
-      <input type="number"
-        value={shownVal}
-        min={isPercent ? Math.round(min*100) : min}
-        max={isPercent ? Math.round(max*100) : max}
-        step={isPercent ? 1 : step}
-        onChange={e=>handleInput(e.target.value)}
+      <input type="range" min={min} max={max} step={step} value={value} onChange={e=>onChange(Number(e.target.value))} style={{ flex:1, accentColor:C.g1 }} />
+      <input type="number" value={shownVal} min={isPercent?Math.round(min*100):min} max={isPercent?Math.round(max*100):max} step={isPercent?1:step} onChange={e=>handleInput(e.target.value)}
         style={{ width:54, padding:"3px 6px", background:C.white, border:`1px solid ${C.grayL}`, borderRadius:6, fontSize:11, color:C.ink, outline:"none", textAlign:"right" }} />
       <span style={{ fontSize:11, color:C.gray, flexShrink:0 }}>{unit}</span>
       <button onClick={onReset} style={{ padding:"2px 6px", background:"none", border:`1px solid ${C.grayL}`, borderRadius:5, fontSize:10, color:C.gray, cursor:"pointer", flexShrink:0 }}>R</button>

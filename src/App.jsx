@@ -2,11 +2,12 @@ import { useState, useRef, useEffect, useCallback } from "react";
 
 const fl = document.createElement("link");
 fl.rel = "stylesheet";
-fl.href = "https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@700&family=Zen+Maru+Gothic:wght@400&family=Noto+Serif+JP:wght@400&family=LINE+Seed+JP:wght@700&family=Kosugi+Maru&family=Zen+Kurenaido&display=swap";
+fl.href = "https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@700&family=Zen+Maru+Gothic:wght@400&family=Noto+Serif+JP:wght@400&family=Kosugi+Maru&family=Zen+Kurenaido&display=swap";
 document.head.appendChild(fl);
-["Noto Sans JP","Zen Maru Gothic","Noto Serif JP","LINE Seed JP","Kosugi Maru","Zen Kurenaido"].forEach(f=>{
-  document.fonts.load(`700 16px '${f}'`).catch(()=>{});
-});
+fl.onload = () => {
+  ["Noto Sans JP","Zen Maru Gothic","Noto Serif JP","Kosugi Maru","Zen Kurenaido"].forEach(f=>{
+    document.fonts.load(`700 16px '${f}'`).catch(()=>{});
+  });
 };
 
 const GITHUB_OWNER = "KIZAN3x3";
@@ -22,12 +23,11 @@ const C = {
 };
 
 const FONTS = [
-  { id:"noto_sans_bold",  name:"ゴシック（太字）",  family:"'Noto Sans JP'",    weight:"700" },
-  { id:"zen_maru",        name:"丸ゴシック",         family:"'Zen Maru Gothic'", weight:"400" },
-  { id:"noto_serif",      name:"明朝（標準）",        family:"'Noto Serif JP'",   weight:"400" },
-  { id:"line_seed",       name:"LINE Seed JP",        family:"'LINE Seed JP'",    weight:"700" },
-  { id:"kosugi_maru",     name:"コスギ丸",            family:"'Kosugi Maru'",     weight:"400" },
-  { id:"zen_kurenaido",   name:"禅 紅椿",             family:"'Zen Kurenaido'",   weight:"400" },
+  { id:"noto_sans_bold",  name:"ゴシック（太字）", family:"'Noto Sans JP'",    weight:"700" },
+  { id:"zen_maru",        name:"丸ゴシック",        family:"'Zen Maru Gothic'", weight:"400" },
+  { id:"noto_serif",      name:"明朝（標準）",       family:"'Noto Serif JP'",  weight:"400" },
+  { id:"kosugi_maru",     name:"コスギ丸",           family:"'Kosugi Maru'",    weight:"400" },
+  { id:"zen_kurenaido",   name:"禅 紅椿",            family:"'Zen Kurenaido'",  weight:"400" },
 ];
 
 const TEXT_SIZES = { large:120, medium:72, small:40 };
@@ -194,21 +194,20 @@ function MainApp() {
   };
 
   const startNew = async () => {
-  setElements([]); setSelected(null); setEditing(null); setHistory([]);
-  const tmpl = await fetchTemplateForTab(tab.id);
-  if (tmpl && Array.isArray(tmpl.elements) && tmpl.elements.length > 0) {
-    // 画像を事前にキャッシュ
-    tmpl.elements.forEach(el=>{
-      if(el.type==="image"&&el.src){
-        const img=new Image(); img.crossOrigin="anonymous";
-        img.onload=()=>{ imgCache[el.src]=img; };
-        img.src=el.src;
-      }
-    });
-    setElements(tmpl.elements);
-  }
-  setScreen("preview");
-};
+    setElements([]); setSelected(null); setEditing(null); setHistory([]);
+    const tmpl = await fetchTemplateForTab(tab.id);
+    if (tmpl && Array.isArray(tmpl.elements) && tmpl.elements.length > 0) {
+      tmpl.elements.forEach(el=>{
+        if(el.type==="image"&&el.src){
+          const img=new Image(); img.crossOrigin="anonymous";
+          img.onload=()=>{ imgCache[el.src]=img; };
+          img.src=el.src;
+        }
+      });
+      setElements(tmpl.elements);
+    }
+    setScreen("preview");
+  };
 
   const saveWork = ()=>{
     const key=`${activeTab}_${Date.now()}`;
@@ -360,7 +359,6 @@ function PreviewScreen({ tab, elements, setElements, selected, setSelected, edit
 
   const getXY = (cx,cy)=>{ if(!canvasRef.current)return{x:0,y:0}; const rect=canvasRef.current.getBoundingClientRect(); return{x:(cx-rect.left)/R,y:(cy-rect.top)/R}; };
 
-  // ★ダブルクリック/ダブルタップでインライン編集
   const activateInlineEdit = (cx, cy)=>{
     const{x,y}=getXY(cx,cy);
     const sorted=[...elements].filter(el=>el&&el.type==="text"&&!el.locked).sort((a,b)=>b.zIndex-a.zIndex);
@@ -379,15 +377,10 @@ function PreviewScreen({ tab, elements, setElements, selected, setSelected, edit
     return false;
   };
 
-  // PC：onClickで400ms以内の2回クリック検出
   const onCanvasClick = (e)=>{
     const now=Date.now();
-    if(now-lastClick.current<400){
-      activateInlineEdit(e.clientX, e.clientY);
-      lastClick.current=0;
-    } else {
-      lastClick.current=now;
-    }
+    if(now-lastClick.current<400){ activateInlineEdit(e.clientX, e.clientY); lastClick.current=0; }
+    else { lastClick.current=now; }
   };
 
   const onMouseDown = (e)=>{
@@ -411,14 +404,8 @@ function PreviewScreen({ tab, elements, setElements, selected, setSelected, edit
       pinchRef.current.lastDist=Math.sqrt(dx*dx+dy*dy);
     } else {
       const now=Date.now();
-      if(now-lastTap.current<300){
-        // スマホ：ダブルタップ
-        activateInlineEdit(e.touches[0].clientX, e.touches[0].clientY);
-        lastTap.current=0;
-      } else {
-        lastTap.current=now;
-        onMouseDown({clientX:e.touches[0].clientX,clientY:e.touches[0].clientY});
-      }
+      if(now-lastTap.current<300){ activateInlineEdit(e.touches[0].clientX, e.touches[0].clientY); lastTap.current=0; }
+      else { lastTap.current=now; onMouseDown({clientX:e.touches[0].clientX,clientY:e.touches[0].clientY}); }
     }
   };
   const onTouchMove = (e)=>{
@@ -450,49 +437,22 @@ function PreviewScreen({ tab, elements, setElements, selected, setSelected, edit
           onClick={onCanvasClick}
           onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
           style={{ display:"block", cursor:selected?"grab":"default", touchAction:"none", userSelect:"none" }} />
-
-        {/* ★インライン編集オーバーレイ */}
         {inlineEdit&&(()=>{
           const el=elements.find(el=>el.id===inlineEdit.id);
           if(!el)return null;
           const font=FONTS.find(f=>f.id===el.font)||FONTS[0];
           return (
-            <textarea
-              autoFocus
-              value={el.text}
+            <textarea autoFocus value={el.text}
               onChange={e=>updateEl(el.id,{text:e.target.value})}
               onBlur={()=>setInlineEdit(null)}
-              onKeyDown={e=>{ if(e.key==="Escape"){ setInlineEdit(null); } }}
-              style={{
-                position:"absolute",
-                left: Math.max(0, inlineEdit.x - inlineEdit.w/2),
-                top:  Math.max(0, inlineEdit.y - inlineEdit.h/2),
-                width: Math.min(inlineEdit.w, PW),
-                minHeight: inlineEdit.h,
-                fontSize: inlineEdit.fs,
-                fontFamily: font.family+",sans-serif",
-                fontWeight: font.weight,
-                color: el.color,
-                background: "rgba(0,0,0,0.5)",
-                border: `2px solid ${C.g1}`,
-                borderRadius: 4,
-                outline: "none",
-                resize: "none",
-                textAlign: "center",
-                padding: "4px",
-                lineHeight: 1.3,
-                boxSizing: "border-box",
-                zIndex: 10,
-                caretColor: C.white,
-                overflow: "hidden",
-              }}
-            />
+              onKeyDown={e=>{ if(e.key==="Escape")setInlineEdit(null); }}
+              style={{ position:"absolute", left:Math.max(0,inlineEdit.x-inlineEdit.w/2), top:Math.max(0,inlineEdit.y-inlineEdit.h/2), width:Math.min(inlineEdit.w,PW), minHeight:inlineEdit.h, fontSize:inlineEdit.fs, fontFamily:font.family+",sans-serif", fontWeight:font.weight, color:el.color, background:"rgba(0,0,0,0.5)", border:`2px solid ${C.g1}`, borderRadius:4, outline:"none", resize:"none", textAlign:"center", padding:"4px", lineHeight:1.3, boxSizing:"border-box", zIndex:10, caretColor:C.white, overflow:"hidden" }} />
           );
         })()}
       </div>
 
       <p style={{ textAlign:"center", fontSize:10, color:C.gray, marginTop:5 }}>
-        {selected?"ドラッグで移動　ピンチで拡縮　ダブルクリックでテキスト編集":"↓ レイヤーで要素を選んでください"}
+        {selected?"ドラッグで移動　ピンチで拡縮　ダブルタップでテキスト編集":"↓ レイヤーで要素を選んでください"}
       </p>
 
       <div style={{ display:"flex", gap:8, marginTop:12, flexWrap:"wrap" }}>
@@ -641,13 +601,13 @@ function drawCanvas(canvas, elements, bgImg, W, H, selectedId, CW, CH) {
 
 function drawTextEl(ctx, el, r, isSelected) {
   const font=FONTS.find(f=>f.id===el.font)||FONTS[0];
-  const fontSize=TEXT_SIZES[el.size]*el.scale*r;
+  const fontSize=(TEXT_SIZES[el.size]||72)*el.scale*r;
   ctx.save(); ctx.translate(el.x*r, el.y*r);
   if(el.rotate) ctx.rotate(el.rotate*Math.PI/180);
   ctx.font=`${font.weight} ${fontSize}px ${font.family},sans-serif`;
   ctx.fillStyle=el.color;
   const drawLine=(text,x,y)=>{
-    if(el.outline){ctx.save();ctx.strokeStyle=el.outlineColor;ctx.lineWidth=el.outlineWidth*r;ctx.lineJoin="round";ctx.strokeText(text,x,y);ctx.restore();}
+    if(el.outline){ctx.save();ctx.strokeStyle=el.outlineColor;ctx.lineWidth=(el.outlineWidth||4)*r;ctx.lineJoin="round";ctx.strokeText(text,x,y);ctx.restore();}
     if(el.shadow){ctx.save();ctx.shadowColor="rgba(0,0,0,0.7)";ctx.shadowOffsetX=2*r;ctx.shadowOffsetY=2*r;ctx.shadowBlur=2*r;ctx.fillStyle=el.color;ctx.fillText(text,x,y);ctx.restore();}
     if(el.glow){ctx.save();ctx.shadowColor=el.glowColor;ctx.shadowBlur=30*r;ctx.fillStyle=el.color;ctx.fillText(text,x,y);ctx.restore();}
     ctx.fillStyle=el.color; ctx.fillText(text,x,y);
