@@ -2,12 +2,11 @@ import { useState, useRef, useEffect, useCallback } from "react";
 
 const fl = document.createElement("link");
 fl.rel = "stylesheet";
-fl.href = "https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&family=Noto+Serif+JP:wght@400;700;900&family=M+PLUS+1p:wght@400;700;800&family=M+PLUS+Rounded+1c:wght@400;700;800&family=Shippori+Mincho:wght@400;700;800&family=Zen+Old+Mincho:wght@400;700;900&display=swap";
+fl.href = "https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@700&family=Zen+Maru+Gothic:wght@400&family=Noto+Serif+JP:wght@400&family=LINE+Seed+JP:wght@700&family=Kosugi+Maru&family=Zen+Kurenaido&display=swap";
 document.head.appendChild(fl);
-fl.onload = () => {
-  ["Noto Sans JP","Noto Serif JP","M PLUS 1p","M PLUS Rounded 1c","Shippori Mincho","Zen Old Mincho"].forEach(f=>{
-    document.fonts.load(`700 16px '${f}'`).catch(()=>{});
-  });
+["Noto Sans JP","Zen Maru Gothic","Noto Serif JP","LINE Seed JP","Kosugi Maru","Zen Kurenaido"].forEach(f=>{
+  document.fonts.load(`700 16px '${f}'`).catch(()=>{});
+});
 };
 
 const GITHUB_OWNER = "KIZAN3x3";
@@ -23,13 +22,12 @@ const C = {
 };
 
 const FONTS = [
-  { id:"noto_sans",    name:"ゴシック（標準）", family:"'Noto Sans JP'",      weight:"700" },
-  { id:"noto_sans_bk", name:"ゴシック（太字）", family:"'Noto Sans JP'",      weight:"900" },
-  { id:"noto_serif",   name:"明朝（標準）",     family:"'Noto Serif JP'",     weight:"700" },
-  { id:"mplus",        name:"ゴシック（丸め）", family:"'M PLUS 1p'",         weight:"700" },
-  { id:"mplus_round",  name:"丸ゴシック",       family:"'M PLUS Rounded 1c'", weight:"700" },
-  { id:"shippori",     name:"明朝（上品）",     family:"'Shippori Mincho'",   weight:"700" },
-  { id:"zen_mincho",   name:"明朝（格調）",     family:"'Zen Old Mincho'",    weight:"700" },
+  { id:"noto_sans_bold",  name:"ゴシック（太字）",  family:"'Noto Sans JP'",    weight:"700" },
+  { id:"zen_maru",        name:"丸ゴシック",         family:"'Zen Maru Gothic'", weight:"400" },
+  { id:"noto_serif",      name:"明朝（標準）",        family:"'Noto Serif JP'",   weight:"400" },
+  { id:"line_seed",       name:"LINE Seed JP",        family:"'LINE Seed JP'",    weight:"700" },
+  { id:"kosugi_maru",     name:"コスギ丸",            family:"'Kosugi Maru'",     weight:"400" },
+  { id:"zen_kurenaido",   name:"禅 紅椿",             family:"'Zen Kurenaido'",   weight:"400" },
 ];
 
 const TEXT_SIZES = { large:120, medium:72, small:40 };

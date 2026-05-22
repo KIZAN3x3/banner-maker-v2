@@ -15,13 +15,12 @@ const C = {
 };
 
 const FONTS = [
-  { id:"noto_sans",    name:"ゴシック（標準）", family:"'Noto Sans JP'",      weight:"700" },
-  { id:"noto_sans_bk", name:"ゴシック（太字）", family:"'Noto Sans JP'",      weight:"900" },
-  { id:"noto_serif",   name:"明朝（標準）",     family:"'Noto Serif JP'",     weight:"700" },
-  { id:"mplus",        name:"ゴシック（丸め）", family:"'M PLUS 1p'",         weight:"700" },
-  { id:"mplus_round",  name:"丸ゴシック",       family:"'M PLUS Rounded 1c'", weight:"700" },
-  { id:"shippori",     name:"明朝（上品）",     family:"'Shippori Mincho'",   weight:"700" },
-  { id:"zen_mincho",   name:"明朝（格調）",     family:"'Zen Old Mincho'",    weight:"700" },
+  { id:"noto_sans_bold",  name:"ゴシック（太字）",  family:"'Noto Sans JP'",    weight:"700" },
+  { id:"zen_maru",        name:"丸ゴシック",         family:"'Zen Maru Gothic'", weight:"400" },
+  { id:"noto_serif",      name:"明朝（標準）",        family:"'Noto Serif JP'",   weight:"400" },
+  { id:"line_seed",       name:"LINE Seed JP",        family:"'LINE Seed JP'",    weight:"700" },
+  { id:"kosugi_maru",     name:"コスギ丸",            family:"'Kosugi Maru'",     weight:"400" },
+  { id:"zen_kurenaido",   name:"禅 紅椿",             family:"'Zen Kurenaido'",   weight:"400" },
 ];
 
 const TEXT_SIZES = { large:120, medium:72, small:40 };
