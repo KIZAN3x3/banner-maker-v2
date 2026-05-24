@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 
 const fl = document.createElement("link");
 fl.rel = "stylesheet";
-fl.href = "https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@700&family=Zen+Maru+Gothic:wght@400&family=Noto+Serif+JP:wght@400&family=Kosugi&family=Zen+Kurenaido&family=LINE+Seed+JP:wght@700&display=swap";
+fl.href = "https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@700&family=Zen+Maru+Gothic:wght@400&family=Noto+Serif+JP:wght@400&family=Kosugi+Maru&family=Zen+Kurenaido&display=swap";
 document.head.appendChild(fl);
 fl.onload = () => {
   ["Noto Sans JP","Zen Maru Gothic","Noto Serif JP","Kosugi Maru","Zen Kurenaido"].forEach(f=>{
@@ -26,7 +26,7 @@ const FONTS = [
   { id:"noto_sans_bold",  name:"ゴシック（太字）", family:"'Noto Sans JP'",    weight:"700" },
   { id:"zen_maru",        name:"丸ゴシック",        family:"'Zen Maru Gothic'", weight:"400" },
   { id:"noto_serif",      name:"明朝（標準）",       family:"'Noto Serif JP'",  weight:"400" },
-  { id:"kosugi", name:"コスギ", family:"'Kosugi'", weight:"400" },
+  { id:"kosugi_maru",     name:"コスギ丸",           family:"'Kosugi Maru'",    weight:"400" },
   { id:"zen_kurenaido",   name:"禅 紅椿",            family:"'Zen Kurenaido'",  weight:"400" },
 ];
 
@@ -229,6 +229,8 @@ function MainApp() {
   const generate = async()=>{
     setGenerating(true); await new Promise(r=>setTimeout(r,80));
     const canvas=document.createElement("canvas"); canvas.width=CW_; canvas.height=CH_;
+    const ctx2=canvas.getContext("2d", {alpha:true});
+    ctx2.clearRect(0,0,CW_,CH_);
     drawCanvas(canvas,elements,bgImg,CW_,CH_,null,CW_,CH_);
     setDownloadUrl(canvas.toDataURL("image/png")); setGenerating(false); setScreen("done");
   };
@@ -591,7 +593,7 @@ function DoneScreen({ downloadUrl, onReset, onBack }) {
 
 function drawCanvas(canvas, elements, bgImg, W, H, selectedId, CW, CH) {
   if(!canvas)return;
-  const r=W/CW; const ctx=canvas.getContext("2d");
+  const r=W/CW; const ctx=canvas.getContext("2d", {alpha:true});
   ctx.clearRect(0,0,W,H); ctx.save(); ctx.beginPath(); ctx.rect(0,0,W,H); ctx.clip();
   if(bgImg){ ctx.drawImage(bgImg,0,0,W,H); }
   else { const g=ctx.createLinearGradient(0,0,W,0); g.addColorStop(0,"rgb(235,97,0)"); g.addColorStop(1,"rgb(241,141,0)"); ctx.fillStyle=g; ctx.fillRect(0,0,W,H); }
