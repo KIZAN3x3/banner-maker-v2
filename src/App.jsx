@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 
 const fl = document.createElement("link");
 fl.rel = "stylesheet";
-fl.href = "https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@700;900&family=Zen+Maru+Gothic:wght@400&family=Noto+Serif+JP:wght@400&family=Kosugi&family=Zen+Kurenaido&family=LINE+Seed+JP:wght@700&family=Zen+Antique&display=swap";
+fl.href = "https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@700&family=Zen+Maru+Gothic:wght@400&family=Noto+Serif+JP:wght@400&family=Kosugi+Maru&family=Zen+Kurenaido&display=swap";
 document.head.appendChild(fl);
 fl.onload = () => {
   ["Noto Sans JP","Zen Maru Gothic","Noto Serif JP","Kosugi Maru","Zen Kurenaido"].forEach(f=>{
@@ -23,13 +23,10 @@ const C = {
 };
 
 const FONTS = [
-  { id:"noto_sans_black", name:"ゴシック（極太）", family:"'Noto Sans JP'", weight:"900" },
   { id:"noto_sans_bold",  name:"ゴシック（太字）", family:"'Noto Sans JP'",    weight:"700" },
-  { id:"line_seed", name:"LINE Seed JP", family:"'LINE Seed JP'", weight:"700" },
-  { id:"kosugi", name:"コスギ", family:"'Kosugi'", weight:"400" },
   { id:"zen_maru",        name:"丸ゴシック",        family:"'Zen Maru Gothic'", weight:"400" },
-  { id:"zen_antique",     name:"禅アンティーク",   family:"'Zen Antique'",  weight:"400" },
   { id:"noto_serif",      name:"明朝（標準）",       family:"'Noto Serif JP'",  weight:"400" },
+  { id:"kosugi_maru",     name:"コスギ丸",           family:"'Kosugi Maru'",    weight:"400" },
   { id:"zen_kurenaido",   name:"禅 紅椿",            family:"'Zen Kurenaido'",  weight:"400" },
 ];
 
@@ -125,7 +122,7 @@ function MainApp() {
   const tab = tabs.find(t=>t.id===activeTab);
   const CW_ = tab?.w || 1080;
   const CH_ = tab?.h || 1920;
-  const PW  = Math.min(typeof window!=="undefined"?window.innerWidth-48-14:380, 420);
+  const PW  = Math.min(typeof window!=="undefined"?window.innerWidth-48:380, 420);
   const PH  = Math.round(PW*CH_/CW_);
   const R   = PW/CW_;
 
@@ -232,6 +229,8 @@ function MainApp() {
   const generate = async()=>{
     setGenerating(true); await new Promise(r=>setTimeout(r,80));
     const canvas=document.createElement("canvas"); canvas.width=CW_; canvas.height=CH_;
+    const ctx2=canvas.getContext("2d", {alpha:true});
+    ctx2.clearRect(0,0,CW_,CH_);
     drawCanvas(canvas,elements,bgImg,CW_,CH_,null,CW_,CH_);
     setDownloadUrl(canvas.toDataURL("image/png")); setGenerating(false); setScreen("done");
   };
@@ -256,9 +255,8 @@ function MainApp() {
   );
 
   return (
-    <div style={{ display:"flex", minHeight:"100vh", background:C.cream, fontFamily:"'Noto Sans JP',sans-serif", color:C.ink }}>
-      <div style={{ flex:1, overflowY:"auto", paddingBottom:60 }} id="main-scroll">
-        <AppHeader screen={screen} onBack={screen==="preview"?()=>setScreen("home"):screen==="done"?()=>setScreen("preview"):null} onSave={screen==="preview"?saveWork:null} onUndo={screen==="preview"&&history.length>0?undo:null} />
+    <div style={{ minHeight:"100vh", background:C.cream, fontFamily:"'Noto Sans JP',sans-serif", color:C.ink, overflowY:"auto" }}>
+      <AppHeader screen={screen} onBack={screen==="preview"?()=>setScreen("home"):screen==="done"?()=>setScreen("preview"):null} onSave={screen==="preview"?saveWork:null} onUndo={screen==="preview"&&history.length>0?undo:null} />
         {screen==="home"&&(
           <div style={{ background:C.white, borderBottom:`1px solid ${C.grayLL}`, display:"flex", overflowX:"auto", position:"sticky", top:56, zIndex:100, WebkitOverflowScrolling:"touch" }}>
             {tabs.map(t=>(
@@ -269,43 +267,7 @@ function MainApp() {
         {screen==="home"    && <HomeScreen tab={tab} tabSaves={tabSaves} onNew={startNew} onLoad={loadWork} onDelete={deleteWork} onRename={renameWork} />}
         {screen==="preview" && <PreviewScreen tab={tab} elements={elements} setElements={setElements} selected={selected} setSelected={setSelected} editing={editing} setEditing={setEditing} bgImg={bgImg} sampleImg={sampleImg} canvasRef={previewRef} PW={PW} PH={PH} R={R} addText={addText} addImage={addImage} updateEl={updateEl} deleteEl={deleteEl} duplicateEl={duplicateEl} moveLayer={moveLayer} pushHistory={pushHistory} onGenerate={generate} generating={generating} />}
         {screen==="done"    && <DoneScreen downloadUrl={downloadUrl} onReset={reset} onBack={()=>setScreen("preview")} />}
-      </div>
-      <ScrollBar targetId="main-scroll" />
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}} @keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}} *{box-sizing:border-box} input::placeholder{color:#C0B8B0} textarea::placeholder{color:#C0B8B0} #main-scroll::-webkit-scrollbar{display:none} #main-scroll{scrollbar-width:none}`}</style>
-    </div>
-  );
-}
-
-function ScrollBar({ targetId }) {
-  const trackRef = useRef(null);
-  const thumbRef = useRef(null);
-  const dragging = useRef(false);
-  const startY   = useRef(0);
-  const startTop = useRef(0);
-  useEffect(()=>{
-    const el = document.getElementById(targetId); if(!el) return;
-    const update = ()=>{
-      const thumb = thumbRef.current; if(!thumb)return;
-      const ratio = el.scrollTop / (el.scrollHeight - el.clientHeight || 1);
-      const trackH = trackRef.current?.clientHeight || 0;
-      const thumbH = Math.max(40, trackH * el.clientHeight / (el.scrollHeight||1));
-      thumb.style.height = thumbH+"px"; thumb.style.top = (ratio*(trackH-thumbH))+"px";
-      thumb.style.opacity = el.scrollHeight > el.clientHeight ? "1" : "0";
-    };
-    el.addEventListener("scroll", update);
-    const ro = new ResizeObserver(update); ro.observe(el); update();
-    return ()=>{ el.removeEventListener("scroll",update); ro.disconnect(); };
-  },[targetId]);
-  const onMouseDown = (e)=>{ dragging.current=true; startY.current=e.clientY; startTop.current=parseFloat(thumbRef.current?.style.top||0); e.preventDefault(); };
-  useEffect(()=>{
-    const onMove=(e)=>{ if(!dragging.current)return; const el=document.getElementById(targetId); if(!el)return; const trackH=trackRef.current?.clientHeight||0; const thumbH=parseFloat(thumbRef.current?.style.height||40); const dy=e.clientY-startY.current; const newTop=Math.min(Math.max(0,startTop.current+dy),trackH-thumbH); el.scrollTop=(newTop/(trackH-thumbH||1))*(el.scrollHeight-el.clientHeight); };
-    const onUp=()=>{ dragging.current=false; };
-    window.addEventListener("mousemove",onMove); window.addEventListener("mouseup",onUp);
-    return()=>{ window.removeEventListener("mousemove",onMove); window.removeEventListener("mouseup",onUp); };
-  },[targetId]);
-  return (
-    <div ref={trackRef} style={{ width:14, position:"sticky", top:0, height:"100vh", background:"rgba(0,0,0,0.15)", flexShrink:0, borderRadius:7, margin:"4px 4px 4px 2px" }}>
-      <div ref={thumbRef} onMouseDown={onMouseDown} style={{ position:"absolute", left:2, width:10, background:"#C4520E", borderRadius:5, cursor:"pointer", transition:"opacity 0.2s", opacity:0, minHeight:40, boxShadow:"0 2px 6px rgba(0,0,0,0.3)" }} />
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}} @keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}} *{box-sizing:border-box} input::placeholder{color:#C0B8B0} textarea::placeholder{color:#C0B8B0}`}</style>
     </div>
   );
 }
@@ -433,6 +395,10 @@ function PreviewScreen({ tab, elements, setElements, selected, setSelected, edit
           <img src={sampleImg.src} style={{ width:"50%", display:"block" }} />
         </div>
       )}
+
+      <p style={{ textAlign:"center", fontSize:11, color:C.gray, margin:"0 0 8px", background:`${C.grayLL}`, padding:"6px", borderRadius:8 }}>
+        💡 キャンバス以外の場所で画面スクロールできます
+      </p>
 
       <div style={{ position:"relative", overflow:"hidden", border:`2px solid ${selected?C.g1:C.grayL}`, boxShadow:`0 8px 32px ${C.g1}20`, transition:"border-color 0.2s" }}>
         <canvas ref={canvasRef} width={PW} height={PH}
@@ -594,7 +560,7 @@ function DoneScreen({ downloadUrl, onReset, onBack }) {
 
 function drawCanvas(canvas, elements, bgImg, W, H, selectedId, CW, CH) {
   if(!canvas)return;
-  const r=W/CW; const ctx=canvas.getContext("2d");
+  const r=W/CW; const ctx=canvas.getContext("2d", {alpha:true});
   ctx.clearRect(0,0,W,H); ctx.save(); ctx.beginPath(); ctx.rect(0,0,W,H); ctx.clip();
   if(bgImg){ ctx.drawImage(bgImg,0,0,W,H); }
   else { const g=ctx.createLinearGradient(0,0,W,0); g.addColorStop(0,"rgb(235,97,0)"); g.addColorStop(1,"rgb(241,141,0)"); ctx.fillStyle=g; ctx.fillRect(0,0,W,H); }
