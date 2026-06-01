@@ -315,6 +315,7 @@ function HomeScreen({ tabs, saves, onNew, onLoad, onDelete, onRename }) {
   style={{ width:"100%", aspectRatio:`${t.w}/${t.h}`, objectFit:"cover", display:"block", background:C.grayLL }} />
             <div style={{ padding:"8px 10px" }}>
               <p style={{ margin:0, fontSize:12, fontWeight:700, color:C.ink, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{t.label}</p>
+              <p style={{ margin:"2px 0 0", fontSize:10, color:C.gray }}>{t.w}×{t.h}px</p>
               {t.category&&<p style={{ margin:"2px 0 0", fontSize:10, color:C.gray }}>{t.category}</p>}
             </div>
           </div>

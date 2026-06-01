@@ -32,7 +32,8 @@
     "bg": "/bg_tab_1779444839162.png",
     "sample": "/sample_tab_1779444839162.png",
     "w": 1080,
-    "h": 1920
+    "h": 1920,
+    "category": "FREE"
   },
   {
     "id": "tab_1779445969640",
@@ -40,7 +41,8 @@
     "bg": "/bg_tab_1779445969640.png",
     "sample": "/sample_tab_1779445969640.png",
     "w": 1080,
-    "h": 1350
+    "h": 1350,
+    "category": "FREE"
   },
   {
     "id": "tab_1779446330659",
@@ -48,6 +50,7 @@
     "bg": "/bg_tab_1779446330659.png",
     "sample": "/sample_tab_1779446330659.png",
     "w": 1080,
-    "h": 1080
+    "h": 1080,
+    "category": "FREE"
   }
 ]
