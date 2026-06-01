@@ -306,7 +306,7 @@ function HomeScreen({ tabs, saves, onNew, onLoad, onDelete, onRename }) {
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:28 }}>
         {filteredTabs.map(t=>(
           <div key={t.id} onClick={()=>onNew(t)}
-            style={{ cursor:"pointer", borderRadius:12, overflow:"hidden", border:`2px solid ${C.grayLL}`, background:C.white, boxShadow:"0 2px 8px rgba(0,0,0,0.08)", transition:"transform 0.15s, box-shadow 0.15s" }}
+            style={{ cursor:"pointer", borderRadius:0, overflow:"hidden", border:`2px solid ${C.grayLL}`, background:C.white, boxShadow:"0 2px 8px rgba(0,0,0,0.08)", transition:"transform 0.15s, box-shadow 0.15s" }}
             onTouchStart={e=>e.currentTarget.style.transform="scale(0.97)"}
             onTouchEnd={e=>e.currentTarget.style.transform="scale(1)"}
             onMouseEnter={e=>{ e.currentTarget.style.transform="scale(1.02)"; e.currentTarget.style.boxShadow=`0 6px 20px ${C.g1}30`; }}
