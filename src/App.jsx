@@ -107,7 +107,6 @@ function PasswordScreen({ onAuth }) {
 function MainApp() {
   const [tabs,       setTabs]       = useState([]);
   const [tabsLoaded, setTabsLoaded] = useState(false);
-  const [activeTab,  setActiveTab]  = useState(null);
   const [screen,     setScreen]     = useState("home");
   const [elements,   setElements]   = useState([]);
   const [selected,   setSelected]   = useState(null);
@@ -119,6 +118,7 @@ function MainApp() {
   const [downloadUrl,setDownloadUrl]= useState(null);
   const [generating, setGenerating] = useState(false);
   const [fontsReady, setFontsReady] = useState(false);
+  const [activeTab,  setActiveTab]  = useState(null); // 選択中テンプレ
 
   const previewRef = useRef(null);
 
@@ -134,7 +134,7 @@ function MainApp() {
       Promise.all(FONTS.map(f=>document.fonts.load(`${f.weight} 48px ${f.family}`)))
         .then(()=>setFontsReady(true)).catch(()=>setFontsReady(true))
     );
-    fetchTabs().then(loaded=>{ setTabs(loaded); if(loaded.length>0)setActiveTab(loaded[0].id); setTabsLoaded(true); });
+    fetchTabs().then(loaded=>{ setTabs(loaded); setTabsLoaded(true); });
   },[]);
 
   useEffect(()=>{
@@ -196,16 +196,13 @@ function MainApp() {
     });
   };
 
-  const startNew = async () => {
+  const startNew = async (tmplTab) => {
+    setActiveTab(tmplTab.id);
     setElements([]); setSelected(null); setEditing(null); setHistory([]);
-    const tmpl = await fetchTemplateForTab(tab.id);
+    const tmpl = await fetchTemplateForTab(tmplTab.id);
     if (tmpl && Array.isArray(tmpl.elements) && tmpl.elements.length > 0) {
       tmpl.elements.forEach(el=>{
-        if(el.type==="image"&&el.src){
-          const img=new Image(); img.crossOrigin="anonymous";
-          img.onload=()=>{ imgCache[el.src]=img; };
-          img.src=el.src;
-        }
+        if(el.type==="image"&&el.src){ const img=new Image(); img.crossOrigin="anonymous"; img.onload=()=>{ imgCache[el.src]=img; }; img.src=el.src; }
       });
       setElements(tmpl.elements);
     }
@@ -226,14 +223,13 @@ function MainApp() {
     if(name===null||!name.trim())return;
     const updated={...saves,[id]:{...work,name:name.trim()}}; setSaves(updated); localStorage.setItem(SS_KEY,JSON.stringify(updated));
   };
-  const loadWork  = (work)=>{ setElements(work.elements); setSelected(null); setEditing(null); setHistory([]); setScreen("preview"); };
+  const loadWork  = (work)=>{ setActiveTab(work.tab); setElements(work.elements); setSelected(null); setEditing(null); setHistory([]); setScreen("preview"); };
   const deleteWork= (id)=>{ const u={...saves}; delete u[id]; setSaves(u); localStorage.setItem(SS_KEY,JSON.stringify(u)); };
 
   const generate = async()=>{
     setGenerating(true); await new Promise(r=>setTimeout(r,80));
     const canvas=document.createElement("canvas"); canvas.width=CW_; canvas.height=CH_;
-    const ctx2=canvas.getContext("2d", {alpha:true});
-    ctx2.clearRect(0,0,CW_,CH_);
+    const ctx2=canvas.getContext("2d",{alpha:true}); ctx2.clearRect(0,0,CW_,CH_);
     drawCanvas(canvas,elements,bgImg,CW_,CH_,null,CW_,CH_);
     setDownloadUrl(canvas.toDataURL("image/png")); setGenerating(false); setScreen("done");
   };
@@ -260,16 +256,9 @@ function MainApp() {
   return (
     <div style={{ minHeight:"100vh", background:C.cream, fontFamily:"'Noto Sans JP',sans-serif", color:C.ink, overflowY:"auto" }}>
       <AppHeader screen={screen} onBack={screen==="preview"?()=>setScreen("home"):screen==="done"?()=>setScreen("preview"):null} onSave={screen==="preview"?saveWork:null} onUndo={screen==="preview"&&history.length>0?undo:null} />
-        {screen==="home"&&(
-          <div style={{ background:C.white, borderBottom:`1px solid ${C.grayLL}`, display:"flex", overflowX:"auto", position:"sticky", top:56, zIndex:100, WebkitOverflowScrolling:"touch" }}>
-            {tabs.map(t=>(
-              <button key={t.id} onClick={()=>setActiveTab(t.id)} style={{ flexShrink:0, padding:"11px 14px", background:"none", border:"none", borderBottom:`3px solid ${activeTab===t.id?C.g1:"transparent"}`, color:activeTab===t.id?C.g1:C.gray, fontSize:12, fontWeight:activeTab===t.id?700:400, fontFamily:"'Noto Sans JP',sans-serif", cursor:"pointer" }}>{t.label}</button>
-            ))}
-          </div>
-        )}
-        {screen==="home"    && <HomeScreen tab={tab} tabSaves={tabSaves} onNew={startNew} onLoad={loadWork} onDelete={deleteWork} onRename={renameWork} />}
-        {screen==="preview" && <PreviewScreen tab={tab} elements={elements} setElements={setElements} selected={selected} setSelected={setSelected} editing={editing} setEditing={setEditing} bgImg={bgImg} sampleImg={sampleImg} canvasRef={previewRef} PW={PW} PH={PH} R={R} addText={addText} addImage={addImage} updateEl={updateEl} deleteEl={deleteEl} duplicateEl={duplicateEl} moveLayer={moveLayer} pushHistory={pushHistory} onGenerate={generate} generating={generating} />}
-        {screen==="done"    && <DoneScreen downloadUrl={downloadUrl} onReset={reset} onBack={()=>setScreen("preview")} />}
+      {screen==="home"    && <HomeScreen tabs={tabs} saves={saves} onNew={startNew} onLoad={loadWork} onDelete={deleteWork} onRename={renameWork} />}
+      {screen==="preview" && <PreviewScreen tab={tab} elements={elements} setElements={setElements} selected={selected} setSelected={setSelected} editing={editing} setEditing={setEditing} bgImg={bgImg} sampleImg={sampleImg} canvasRef={previewRef} PW={PW} PH={PH} R={R} addText={addText} addImage={addImage} updateEl={updateEl} deleteEl={deleteEl} duplicateEl={duplicateEl} moveLayer={moveLayer} pushHistory={pushHistory} onGenerate={generate} generating={generating} tabSaves={tabSaves} onLoad={loadWork} onDelete={deleteWork} onRename={renameWork} />}
+      {screen==="done"    && <DoneScreen downloadUrl={downloadUrl} onReset={reset} onBack={()=>setScreen("preview")} />}
       <style>{`@keyframes spin{to{transform:rotate(360deg)}} @keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}} *{box-sizing:border-box} input::placeholder{color:#C0B8B0} textarea::placeholder{color:#C0B8B0}`}</style>
     </div>
   );
@@ -289,27 +278,71 @@ function AppHeader({ screen, onBack, onSave, onUndo }) {
   );
 }
 
-function HomeScreen({ tab, tabSaves, onNew, onLoad, onDelete, onRename }) {
+// ── ホーム画面：カテゴリー＋サムネイルグリッド ──────────
+function HomeScreen({ tabs, saves, onNew, onLoad, onDelete, onRename }) {
+  // カテゴリー一覧（tabs.categoryがあればそれ、なければ「すべて」）
+  const categories = ["すべて", ...Array.from(new Set(tabs.map(t=>t.category||"未分類").filter(Boolean)))];
+  const [activeCat, setActiveCat] = useState("すべて");
+
+  const filteredTabs = activeCat==="すべて" ? tabs : tabs.filter(t=>(t.category||"未分類")===activeCat);
+  const allSaves = Object.values(saves).sort((a,b)=>b.createdAt-a.createdAt);
+
   return (
-    <div style={{ maxWidth:520, margin:"0 auto", padding:"20px 16px 40px" }}>
-      <button onClick={onNew} style={{ width:"100%", padding:"18px", background:`linear-gradient(135deg,${C.g1} 7%,${C.g2} 97%)`, border:"none", borderRadius:14, color:C.white, fontSize:16, fontWeight:700, fontFamily:"'Noto Sans JP',sans-serif", cursor:"pointer", boxShadow:`0 4px 20px ${C.g1}45`, marginBottom:24 }}>＋ 新規作成</button>
-      {tabSaves.length>0&&(
+    <div style={{ maxWidth:520, margin:"0 auto", padding:"16px 16px 60px" }}>
+      {/* カテゴリータブ */}
+      {categories.length>1&&(
+        <div style={{ display:"flex", overflowX:"auto", gap:8, marginBottom:16, paddingBottom:4, WebkitOverflowScrolling:"touch" }}>
+          {categories.map(cat=>(
+            <button key={cat} onClick={()=>setActiveCat(cat)}
+              style={{ flexShrink:0, padding:"6px 16px", background:activeCat===cat?C.g1:C.white, border:`1.5px solid ${activeCat===cat?C.g1:C.grayL}`, borderRadius:20, color:activeCat===cat?C.white:C.gray, fontSize:12, fontWeight:activeCat===cat?700:400, cursor:"pointer", fontFamily:"'Noto Sans JP',sans-serif" }}>
+              {cat}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* テンプレートサムネイルグリッド */}
+      <p style={{ fontSize:13, fontWeight:700, color:C.inkS, marginBottom:10 }}>テンプレートを選んで作成</p>
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:28 }}>
+        {filteredTabs.map(t=>(
+          <div key={t.id} onClick={()=>onNew(t)}
+            style={{ cursor:"pointer", borderRadius:12, overflow:"hidden", border:`2px solid ${C.grayLL}`, background:C.white, boxShadow:"0 2px 8px rgba(0,0,0,0.08)", transition:"transform 0.15s, box-shadow 0.15s" }}
+            onTouchStart={e=>e.currentTarget.style.transform="scale(0.97)"}
+            onTouchEnd={e=>e.currentTarget.style.transform="scale(1)"}
+            onMouseEnter={e=>{ e.currentTarget.style.transform="scale(1.02)"; e.currentTarget.style.boxShadow=`0 6px 20px ${C.g1}30`; }}
+            onMouseLeave={e=>{ e.currentTarget.style.transform="scale(1)"; e.currentTarget.style.boxShadow="0 2px 8px rgba(0,0,0,0.08)"; }}>
+            <img src={t.sample} alt={t.label}
+              style={{ width:"100%", aspectRatio:"9/16", objectFit:"cover", display:"block", background:C.grayLL }} />
+            <div style={{ padding:"8px 10px" }}>
+              <p style={{ margin:0, fontSize:12, fontWeight:700, color:C.ink, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{t.label}</p>
+              {t.category&&<p style={{ margin:"2px 0 0", fontSize:10, color:C.gray }}>{t.category}</p>}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* 保存済み */}
+      {allSaves.length>0&&(
         <div>
-          <p style={{ fontSize:13, fontWeight:700, color:C.inkS, marginBottom:12 }}>保存済み</p>
+          <p style={{ fontSize:13, fontWeight:700, color:C.inkS, marginBottom:10 }}>保存済み</p>
           <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-            {tabSaves.map(work=>(
-              <div key={work.id} style={{ background:C.white, borderRadius:12, padding:"14px 16px", border:`1px solid ${C.grayLL}`, display:"flex", alignItems:"center", gap:10 }}>
-                <div style={{ flex:1, minWidth:0 }}>
-                  <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-                    <p style={{ margin:0, fontSize:14, fontWeight:700, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{work.name}</p>
-                    <button onClick={()=>onRename(work.id)} style={{ flexShrink:0, padding:"2px 8px", background:"none", border:`1px solid ${C.grayL}`, borderRadius:6, color:C.gray, fontSize:10, cursor:"pointer" }}>✏️</button>
+            {allSaves.map(work=>{
+              const workTab = tabs.find(t=>t.id===work.tab);
+              return (
+                <div key={work.id} style={{ background:C.white, borderRadius:12, padding:"14px 16px", border:`1px solid ${C.grayLL}`, display:"flex", alignItems:"center", gap:10 }}>
+                  {workTab&&<img src={workTab.sample} alt="" style={{ width:36, height:50, objectFit:"cover", borderRadius:6, border:`1px solid ${C.grayLL}`, flexShrink:0 }} />}
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                      <p style={{ margin:0, fontSize:14, fontWeight:700, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{work.name}</p>
+                      <button onClick={()=>onRename(work.id)} style={{ flexShrink:0, padding:"2px 8px", background:"none", border:`1px solid ${C.grayL}`, borderRadius:6, color:C.gray, fontSize:10, cursor:"pointer" }}>✏️</button>
+                    </div>
+                    <p style={{ margin:"3px 0 0", fontSize:11, color:C.gray }}>{workTab?.label||""}</p>
                   </div>
-                  <p style={{ margin:"3px 0 0", fontSize:11, color:C.gray }}>{work.elements.length}個の要素</p>
+                  <button onClick={()=>onLoad(work)} style={{ padding:"8px 16px", background:`linear-gradient(135deg,${C.g1},${C.g2})`, border:"none", borderRadius:8, color:C.white, fontSize:12, fontWeight:700, cursor:"pointer", flexShrink:0 }}>編集</button>
+                  <button onClick={()=>{if(confirm("削除しますか？"))onDelete(work.id);}} style={{ padding:"8px 12px", background:"none", border:`1px solid ${C.grayL}`, borderRadius:8, color:C.gray, fontSize:12, cursor:"pointer", flexShrink:0 }}>削除</button>
                 </div>
-                <button onClick={()=>onLoad(work)} style={{ padding:"8px 16px", background:`linear-gradient(135deg,${C.g1},${C.g2})`, border:"none", borderRadius:8, color:C.white, fontSize:12, fontWeight:700, cursor:"pointer", flexShrink:0 }}>編集</button>
-                <button onClick={()=>{if(confirm("削除しますか？"))onDelete(work.id);}} style={{ padding:"8px 12px", background:"none", border:`1px solid ${C.grayL}`, borderRadius:8, color:C.gray, fontSize:12, cursor:"pointer", flexShrink:0 }}>削除</button>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
@@ -317,7 +350,7 @@ function HomeScreen({ tab, tabSaves, onNew, onLoad, onDelete, onRename }) {
   );
 }
 
-function PreviewScreen({ tab, elements, setElements, selected, setSelected, editing, setEditing, bgImg, sampleImg, canvasRef, PW, PH, R, addText, addImage, updateEl, deleteEl, duplicateEl, moveLayer, pushHistory, onGenerate, generating }) {
+function PreviewScreen({ tab, elements, setElements, selected, setSelected, editing, setEditing, bgImg, sampleImg, canvasRef, PW, PH, R, addText, addImage, updateEl, deleteEl, duplicateEl, moveLayer, pushHistory, onGenerate, generating, tabSaves, onLoad, onDelete, onRename }) {
   const dragging    = useRef(null);
   const pinchRef    = useRef({ lastDist:null });
   const lastTap     = useRef(0);
@@ -399,7 +432,7 @@ function PreviewScreen({ tab, elements, setElements, selected, setSelected, edit
         </div>
       )}
 
-      <p style={{ textAlign:"center", fontSize:11, color:C.gray, margin:"0 0 8px", background:`${C.grayLL}`, padding:"6px", borderRadius:8 }}>
+      <p style={{ textAlign:"center", fontSize:11, color:C.gray, margin:"0 0 8px", background:C.grayLL, padding:"6px", borderRadius:8 }}>
         💡 キャンバス以外の場所で画面スクロールできます
       </p>
 
@@ -534,6 +567,23 @@ function PreviewScreen({ tab, elements, setElements, selected, setSelected, edit
         </div>
       )}
 
+      {tabSaves&&tabSaves.length>0&&(
+        <div style={{ marginTop:16 }}>
+          <p style={{ fontSize:12, fontWeight:700, color:C.inkS, marginBottom:8 }}>このテンプレの保存済み</p>
+          <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+            {tabSaves.map(work=>(
+              <div key={work.id} style={{ background:C.white, borderRadius:10, padding:"10px 14px", border:`1px solid ${C.grayLL}`, display:"flex", alignItems:"center", gap:10 }}>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <p style={{ margin:0, fontSize:13, fontWeight:700, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{work.name}</p>
+                </div>
+                <button onClick={()=>onLoad(work)} style={{ padding:"6px 14px", background:`linear-gradient(135deg,${C.g1},${C.g2})`, border:"none", borderRadius:7, color:C.white, fontSize:11, fontWeight:700, cursor:"pointer", flexShrink:0 }}>編集</button>
+                <button onClick={()=>{if(confirm("削除しますか？"))onDelete(work.id);}} style={{ padding:"6px 10px", background:"none", border:`1px solid ${C.grayL}`, borderRadius:7, color:C.gray, fontSize:11, cursor:"pointer", flexShrink:0 }}>削除</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <button onClick={onGenerate} disabled={generating} style={{ width:"100%", marginTop:16, padding:"16px", background:generating?`${C.g1}60`:`linear-gradient(135deg,${C.g1} 7%,${C.g2} 97%)`, border:"none", borderRadius:14, color:C.white, fontSize:15, fontWeight:700, fontFamily:"'Noto Sans JP',sans-serif", cursor:generating?"not-allowed":"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
         {generating?<><Spinner size={18} color={C.white}/>生成中...</>:"✦ バナーを生成する"}
       </button>
@@ -563,7 +613,7 @@ function DoneScreen({ downloadUrl, onReset, onBack }) {
 
 function drawCanvas(canvas, elements, bgImg, W, H, selectedId, CW, CH) {
   if(!canvas)return;
-  const r=W/CW; const ctx=canvas.getContext("2d", {alpha:true});
+  const r=W/CW; const ctx=canvas.getContext("2d",{alpha:true});
   ctx.clearRect(0,0,W,H); ctx.save(); ctx.beginPath(); ctx.rect(0,0,W,H); ctx.clip();
   if(bgImg){ ctx.drawImage(bgImg,0,0,W,H); }
   else { const g=ctx.createLinearGradient(0,0,W,0); g.addColorStop(0,"rgb(235,97,0)"); g.addColorStop(1,"rgb(241,141,0)"); ctx.fillStyle=g; ctx.fillRect(0,0,W,H); }
@@ -579,9 +629,9 @@ function drawTextEl(ctx, el, r, isSelected) {
   ctx.font=`${font.weight} ${fontSize}px ${font.family},sans-serif`;
   ctx.fillStyle=el.color;
   const drawLine=(text,x,y)=>{
-    if(el.outline){ctx.save();ctx.strokeStyle=el.outlineColor;ctx.lineWidth=(el.outlineWidth||4)*r;ctx.lineJoin="round";ctx.strokeText(text,x,y);ctx.restore();}
+    if(el.outline){ctx.save();ctx.strokeStyle=el.outlineColor||"#000";ctx.lineWidth=(el.outlineWidth||4)*r;ctx.lineJoin="round";ctx.strokeText(text,x,y);ctx.restore();}
     if(el.shadow){ctx.save();ctx.shadowColor="rgba(0,0,0,0.7)";ctx.shadowOffsetX=2*r;ctx.shadowOffsetY=2*r;ctx.shadowBlur=2*r;ctx.fillStyle=el.color;ctx.fillText(text,x,y);ctx.restore();}
-    if(el.glow){ctx.save();ctx.shadowColor=el.glowColor;ctx.shadowBlur=30*r;ctx.fillStyle=el.color;ctx.fillText(text,x,y);ctx.restore();}
+    if(el.glow){ctx.save();ctx.shadowColor=el.glowColor||"#FF6600";ctx.shadowBlur=30*r;ctx.fillStyle=el.color;ctx.fillText(text,x,y);ctx.restore();}
     ctx.fillStyle=el.color; ctx.fillText(text,x,y);
   };
   if(el.vertical){

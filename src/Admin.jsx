@@ -1,4 +1,4 @@
-﻿import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 
 const ADMIN_PASSWORD     = "123123";
 const GITHUB_OWNER       = "KIZAN3x3";
@@ -15,13 +15,10 @@ const C = {
 };
 
 const FONTS = [
-  { id:"noto_sans_black", name:"ゴシック（極太）", family:"'Noto Sans JP'", weight:"900" },
   { id:"noto_sans_bold",  name:"ゴシック（太字）", family:"'Noto Sans JP'",    weight:"700" },
-  { id:"line_seed", name:"LINE Seed JP", family:"'LINE Seed JP'", weight:"700" },
-  { id:"kosugi", name:"コスギ", family:"'Kosugi'", weight:"400" },
   { id:"zen_maru",        name:"丸ゴシック",        family:"'Zen Maru Gothic'", weight:"400" },
-  { id:"zen_antique",     name:"禅アンティーク",   family:"'Zen Antique'",  weight:"400" },
   { id:"noto_serif",      name:"明朝（標準）",       family:"'Noto Serif JP'",  weight:"400" },
+  { id:"kosugi_maru",     name:"コスギ丸",           family:"'Kosugi Maru'",    weight:"400" },
   { id:"zen_kurenaido",   name:"禅 紅椿",            family:"'Zen Kurenaido'",  weight:"400" },
 ];
 
@@ -268,11 +265,11 @@ function TemplateAdmin() {
   if (templates===null) return <div style={{ textAlign:"center", padding:60 }}><Spinner size={36}/></div>;
 
   if (mode==="create") return (
-    <TemplateWizard onDone={(newTmpl)=>{ setTemplates(prev=>[...(prev||[]),newTmpl]); setMode("list"); }} onCancel={()=>setMode("list")} />
+    <TemplateWizard onDone={(newTmpl)=>{ setTemplates(prev=>[...(prev||[]),newTmpl]); setMode("list"); }} onCancel={()=>setMode("list")} existingCategories={Array.from(new Set((templates||[]).map(t=>t.category).filter(Boolean)))} />
   );
 
   if (mode==="edit"&&editTarget) return (
-    <TemplateEditor tmpl={editTarget} onDone={(updated)=>{ setTemplates(prev=>prev.map(t=>t.id===updated.id?updated:t)); setMode("list"); }} onCancel={()=>setMode("list")} />
+    <TemplateEditor tmpl={editTarget} onDone={(updated)=>{ setTemplates(prev=>prev.map(t=>t.id===updated.id?updated:t)); setMode("list"); }} onCancel={()=>setMode("list")} existingCategories={Array.from(new Set((templates||[]).map(t=>t.category).filter(Boolean)))} />
   );
 
   return (
@@ -297,7 +294,10 @@ function TemplateAdmin() {
                   style={{ width:44, height:60, objectFit:"cover", borderRadius:8, border:`1px solid ${C.grayLL}`, flexShrink:0, background:C.grayLL }} />
                 <div style={{ flex:1, minWidth:0 }}>
                   <p style={{ margin:0, fontSize:15, fontWeight:700, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{tmpl.label}</p>
-                  <p style={{ margin:"3px 0 0", fontSize:11, color:C.gray }}>{SNS_SIZES.find(s=>s.w===tmpl.w&&s.h===tmpl.h)?.label||"カスタム"}　{tmpl.w}×{tmpl.h}px</p>
+                  <p style={{ margin:"3px 0 0", fontSize:11, color:C.gray }}>
+                    {tmpl.category&&<span style={{ background:`${C.g1}20`, color:C.g1, padding:"1px 8px", borderRadius:10, marginRight:6, fontSize:10 }}>{tmpl.category}</span>}
+                    {SNS_SIZES.find(s=>s.w===tmpl.w&&s.h===tmpl.h)?.label||"カスタム"}　{tmpl.w}×{tmpl.h}px
+                  </p>
                 </div>
                 <button onClick={()=>moveTemplate(idx,"up")} disabled={idx===0} style={{ padding:"5px 9px", background:C.cream, border:`1px solid ${C.grayL}`, borderRadius:7, color:idx===0?C.grayL:C.ink, fontSize:12, cursor:idx===0?"default":"pointer", flexShrink:0 }}>↑</button>
                 <button onClick={()=>moveTemplate(idx,"down")} disabled={idx===templates.length-1} style={{ padding:"5px 9px", background:C.cream, border:`1px solid ${C.grayL}`, borderRadius:7, color:idx===templates.length-1?C.grayL:C.ink, fontSize:12, cursor:idx===templates.length-1?"default":"pointer", flexShrink:0 }}>↓</button>
@@ -318,9 +318,10 @@ function TemplateAdmin() {
   );
 }
 
-function TemplateWizard({ onDone, onCancel }) {
+function TemplateWizard({ onDone, onCancel, existingCategories }) {
   const [step,       setStep]       = useState(1);
   const [label,      setLabel]      = useState("");
+  const [category,   setCategory]   = useState("");
   const [sizeId,     setSizeId]     = useState("reel");
   const [sampleFile, setSampleFile] = useState(null);
   const [samplePrev, setSamplePrev] = useState(null);
@@ -355,7 +356,7 @@ function TemplateWizard({ onDone, onCancel }) {
       await ghPut(`public/templates/${tabId}/template.json`, jsonToB64({ elements }), `Save template: ${label}`);
       setMsg("⑤ タブ情報を保存中...");
       const currentTabs = await loadTemplatesFromGH();
-      const newTmpl = { id:tabId, label:label.trim(), bg:`/${bgName}`, sample:`/${smName}`, w:size.w, h:size.h };
+      const newTmpl = { id:tabId, label:label.trim(), category:category.trim()||undefined, bg:`/${bgName}`, sample:`/${smName}`, w:size.w, h:size.h };
       await ghPut("public/tabs.json", jsonToB64([...currentTabs, newTmpl]), `Add template: ${label}`);
       await triggerDeploy();
       setMsg("✅ 登録しました！");
@@ -382,6 +383,9 @@ function TemplateWizard({ onDone, onCancel }) {
           <p style={{ margin:"0 0 16px", fontSize:15, fontWeight:700 }}>Step1：基本情報を入力</p>
           <label style={LS}>テンプレート名</label>
           <input value={label} onChange={e=>setLabel(e.target.value)} placeholder="例：街頭演説バナー" style={IS} />
+          <label style={LS}>カテゴリー（任意）</label>
+          <input value={category} onChange={e=>setCategory(e.target.value)} placeholder="例：街宣、SNS広告" style={IS} list="cat-list" />
+          <datalist id="cat-list">{(existingCategories||[]).map(c=><option key={c} value={c}/>)}</datalist>
           <label style={LS}>SNSサイズ</label>
           <div style={{ display:"flex", gap:8, marginBottom:16, flexWrap:"wrap" }}>
             {SNS_SIZES.map(s=>(
@@ -407,9 +411,10 @@ function TemplateWizard({ onDone, onCancel }) {
   );
 }
 
-function TemplateEditor({ tmpl, onDone, onCancel }) {
+function TemplateEditor({ tmpl, onDone, onCancel, existingCategories }) {
   const [step,      setStep]      = useState(1);
   const [label,     setLabel]     = useState(tmpl.label);
+  const [category,  setCategory]  = useState(tmpl.category||"");
   const [sampleFile,setSampleFile]= useState(null);
   const [samplePrev,setSamplePrev]= useState(null);
   const [bgFile,    setBgFile]    = useState(null);
@@ -441,7 +446,7 @@ function TemplateEditor({ tmpl, onDone, onCancel }) {
       if (sampleFile) await ghPut(`public/${tmpl.sample.replace(/^\//,"")}`, await toBase64(sampleFile), `Update sample: ${label}`);
       if (bgFile)     await ghPut(`public/${tmpl.bg.replace(/^\//,"")}`,     await toBase64(bgFile),     `Update bg: ${label}`);
       await ghPut(`public/templates/${tmpl.id}/template.json`, jsonToB64({ elements }), `Update template: ${label}`);
-      const updatedTmpl = { ...tmpl, label:label.trim() };
+      const updatedTmpl = { ...tmpl, label:label.trim(), category:category.trim()||undefined };
       const current = await loadTemplatesFromGH();
       await ghPut("public/tabs.json", jsonToB64(current.map(t=>t.id===tmpl.id?updatedTmpl:t)), `Update template: ${label}`);
       await triggerDeploy();
@@ -470,6 +475,9 @@ function TemplateEditor({ tmpl, onDone, onCancel }) {
         <div style={{ background:C.white, borderRadius:16, padding:"20px", border:`1px solid ${C.grayLL}`, animation:"fadeUp 0.2s ease" }}>
           <label style={LS}>テンプレート名</label>
           <input value={label} onChange={e=>setLabel(e.target.value)} style={IS} />
+          <label style={LS}>カテゴリー（任意）</label>
+          <input value={category} onChange={e=>setCategory(e.target.value)} placeholder="例：街宣、SNS広告" style={IS} list="cat-list2" />
+          <datalist id="cat-list2">{(existingCategories||[]).map(c=><option key={c} value={c}/>)}</datalist>
           <label style={LS}>お手本画像を差し替え（任意）</label>
           <div style={{ display:"flex", gap:10, alignItems:"flex-start", marginBottom:12 }}>
             <img src={`${RAW_BASE}${tmpl.sample}?t=${Date.now()}`} alt="" style={{ width:48, height:68, objectFit:"cover", borderRadius:6, border:`1px solid ${C.grayLL}`, background:C.grayLL, flexShrink:0 }} />
