@@ -312,7 +312,7 @@ function HomeScreen({ tabs, saves, onNew, onLoad, onDelete, onRename }) {
             onMouseEnter={e=>{ e.currentTarget.style.transform="scale(1.02)"; e.currentTarget.style.boxShadow=`0 6px 20px ${C.g1}30`; }}
             onMouseLeave={e=>{ e.currentTarget.style.transform="scale(1)"; e.currentTarget.style.boxShadow="0 2px 8px rgba(0,0,0,0.08)"; }}>
             <img src={t.sample} alt={t.label}
-              style={{ width:"100%", aspectRatio:"9/16", objectFit:"cover", display:"block", background:C.grayLL }} />
+  style={{ width:"100%", aspectRatio:`${t.w}/${t.h}`, objectFit:"cover", display:"block", background:C.grayLL }} />
             <div style={{ padding:"8px 10px" }}>
               <p style={{ margin:0, fontSize:12, fontWeight:700, color:C.ink, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{t.label}</p>
               {t.category&&<p style={{ margin:"2px 0 0", fontSize:10, color:C.gray }}>{t.category}</p>}
