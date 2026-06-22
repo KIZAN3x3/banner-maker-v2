@@ -125,7 +125,9 @@ function MainApp() {
   const tab = tabs.find(t=>t.id===activeTab);
   const CW_ = tab?.w || 1080;
   const CH_ = tab?.h || 1920;
-  const PW  = Math.min(typeof window!=="undefined"?window.innerWidth-48:380, 420);
+  const EDIT_SCALE = 0.9; // 編集中の表示倍率（生成には影響しない）
+  const PW_FULL = Math.min(typeof window!=="undefined"?window.innerWidth-48:380, 420);
+  const PW  = Math.round(PW_FULL*EDIT_SCALE);
   const PH  = Math.round(PW*CH_/CW_);
   const R   = PW/CW_;
 
