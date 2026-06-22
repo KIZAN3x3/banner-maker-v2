@@ -439,7 +439,7 @@ function PreviewScreen({ tab, elements, setElements, selected, setSelected, edit
         💡 キャンバス以外の場所で画面スクロールできます
       </p>
 
-      <div style={{ position:"relative", overflow:"hidden", border:`2px solid ${selected?C.g1:C.grayL}`, boxShadow:`0 8px 32px ${C.g1}20`, transition:"border-color 0.2s" }}>
+      <div style={{ position:"relative", overflow:"hidden", width:PW, margin:"0 auto", border:`2px solid ${selected?C.g1:C.grayL}`, boxShadow:`0 8px 32px ${C.g1}20`, transition:"border-color 0.2s" }}>
         <canvas ref={canvasRef} width={PW} height={PH}
           onMouseDown={onMouseDown} onMouseMove={onMouseMove} onMouseUp={onMouseUp} onMouseLeave={onMouseUp}
           onClick={onCanvasClick}
