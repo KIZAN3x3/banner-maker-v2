@@ -1,4 +1,8 @@
 import { useState, useRef, useEffect } from "react";
+import { DndContext, closestCenter } from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
+import SortableLayerRow from "./SortableLayerRow";
+import { useLayerDndSensors } from "./useLayerDndSensors";
 
 const ADMIN_PASSWORD     = "123123";
 const GITHUB_OWNER       = "KIZAN3x3";
@@ -127,7 +131,7 @@ function drawCanvas(canvas, elements, bgImg, W, H, selectedId, CW, CH) {
   ctx.clearRect(0,0,W,H); ctx.save(); ctx.beginPath(); ctx.rect(0,0,W,H); ctx.clip();
   if(bgImg){ ctx.drawImage(bgImg,0,0,W,H); }
   else { const g=ctx.createLinearGradient(0,0,W,0); g.addColorStop(0,"rgb(235,97,0)"); g.addColorStop(1,"rgb(241,141,0)"); ctx.fillStyle=g; ctx.fillRect(0,0,W,H); }
-  [...elements].sort((a,b)=>a.zIndex-b.zIndex).forEach(el=>{ if(el.type==="image") drawImageEl(ctx,el,r,selectedId===el.id); else drawTextEl(ctx,el,r,selectedId===el.id); });
+  [...elements].sort((a,b)=>a.zIndex-b.zIndex).forEach(el=>{ if(el.visible===false)return; if(el.type==="image") drawImageEl(ctx,el,r,selectedId===el.id); else drawTextEl(ctx,el,r,selectedId===el.id); });
   ctx.restore();
 }
 
@@ -511,6 +515,7 @@ function LayerEditor({ bgDataUrl, bgPath, sampleUrl, canvasW, canvasH, elements,
   const [editing,    setEditing]    = useState(null);
   const [bgImg,      setBgImg]      = useState(null);
   const [inlineEdit, setInlineEdit] = useState(null);
+  const dndSensors = useLayerDndSensors();
 
   const canvasRef   = useRef(null);
   const dragging    = useRef(null);
@@ -548,7 +553,7 @@ function LayerEditor({ bgDataUrl, bgPath, sampleUrl, canvasW, canvasH, elements,
 
   const activateInlineEdit = (cx, cy)=>{
     const{x,y}=getXY(cx,cy);
-    const sorted=[...elements].filter(el=>el&&el.type==="text").sort((a,b)=>b.zIndex-a.zIndex);
+    const sorted=[...elements].filter(el=>el&&el.type==="text"&&el.visible!==false).sort((a,b)=>b.zIndex-a.zIndex);
     for(const el of sorted){
       const dist=Math.sqrt(Math.pow(x-el.x,2)+Math.pow(y-el.y,2));
       if(dist<200){
@@ -621,9 +626,17 @@ function LayerEditor({ bgDataUrl, bgPath, sampleUrl, canvasW, canvasH, elements,
       return arr.map((el,i)=>({...el,zIndex:i}));
     });
   };
+  const reorderLayers = (newOrderIdsFrontToBack)=>{
+    const total=newOrderIdsFrontToBack.length;
+    setElements(e=>e.map(el=>{
+      const idx=newOrderIdsFrontToBack.indexOf(el.id);
+      return idx===-1 ? el : {...el, zIndex: total-1-idx};
+    }));
+  };
+  const toggleVisible = (id)=>updateEl(id,{visible: elements.find(el=>el.id===id)?.visible===false});
 
   const addTextEl = ()=>{
-    const el={ id:uid(), type:"text", text:"テキストを入力", font:"noto_sans_bold", size:"medium", color:"#FFFFFF", vertical:false, shadow:false, outline:false, outlineColor:"#000000", outlineWidth:4, glow:false, glowColor:"#FF6600", x:CW/2, y:CH/2, scale:1, rotate:0, zIndex:elements.length, locked:false };
+    const el={ id:uid(), type:"text", text:"テキストを入力", font:"noto_sans_bold", size:"medium", color:"#FFFFFF", vertical:false, shadow:false, outline:false, outlineColor:"#000000", outlineWidth:4, glow:false, glowColor:"#FF6600", x:CW/2, y:CH/2, scale:1, rotate:0, zIndex:elements.length, locked:false, visible:true };
     setElements(e=>[...e,el]); setSelected(el.id); setEditing(el.id);
   };
 
@@ -639,7 +652,7 @@ function LayerEditor({ bgDataUrl, bgPath, sampleUrl, canvasW, canvasH, elements,
         canvas.width=w; canvas.height=h;
         canvas.getContext("2d").drawImage(img,0,0,w,h);
         const src=canvas.toDataURL("image/png");
-        const el={ id:uid(), type:"image", src, naturalW:w, naturalH:h, x:CW/2, y:CH/2, scale:0.3, rotate:0, zIndex:elements.length, locked:false };
+        const el={ id:uid(), type:"image", src, naturalW:w, naturalH:h, x:CW/2, y:CH/2, scale:0.3, rotate:0, zIndex:elements.length, locked:false, visible:true };
         setElements(e=>[...e,el]); setSelected(el.id);
       };
       img.src=ev.target.result;
@@ -648,6 +661,14 @@ function LayerEditor({ bgDataUrl, bgPath, sampleUrl, canvasW, canvasH, elements,
   };
 
   const sortedEls = [...elements].sort((a,b)=>b.zIndex-a.zIndex);
+  const sortedIds = sortedEls.map(el=>el.id);
+  const handleDragEnd = (event)=>{
+    const { active, over } = event;
+    if(!over || active.id===over.id) return;
+    const oldIndex=sortedIds.indexOf(active.id), newIndex=sortedIds.indexOf(over.id);
+    if(oldIndex===-1||newIndex===-1) return;
+    reorderLayers(arrayMove(sortedIds, oldIndex, newIndex));
+  };
 
   return (
     <div style={{ animation:"fadeUp 0.2s ease" }}>
@@ -703,18 +724,24 @@ function LayerEditor({ bgDataUrl, bgPath, sampleUrl, canvasW, canvasH, elements,
         </div>
       ) : (
         <div style={{ background:C.white, borderRadius:12, border:`1px solid ${C.grayLL}`, overflow:"hidden", marginBottom:14 }}>
-          <p style={{ margin:0, padding:"8px 12px", fontSize:11, fontWeight:700, color:C.gray, background:C.cream, borderBottom:`1px solid ${C.grayLL}` }}>レイヤー構成（上が前面）</p>
+          <p style={{ margin:0, padding:"8px 12px", fontSize:11, fontWeight:700, color:C.gray, background:C.cream, borderBottom:`1px solid ${C.grayLL}` }}>レイヤー構成（上が前面）　↑↓・長押しドラッグで並び替え</p>
+          <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={sortedIds} strategy={verticalListSortingStrategy}>
           {sortedEls.map((el,idx)=>{
             const isLocked = el.locked===true;
             const isSel = selected===el.id;
-            return (
-              <div key={el.id} style={{ borderBottom:idx<sortedEls.length-1?`1px solid ${C.grayLL}`:"none" }}>
+            const isVisible = el.visible !== false;
+            const header = (
                 <div onClick={()=>{ setSelected(el.id); setEditing(null); }}
                   style={{ display:"flex", alignItems:"center", gap:6, padding:"10px 12px", background:isSel?`${C.g1}10`:C.white, cursor:"pointer" }}>
-                  <span style={{ fontSize:14, flexShrink:0 }}>{el.type==="text"?"✏️":"🖼"}</span>
-                  <span style={{ flex:1, fontSize:12, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", color:isSel?C.g1:C.ink, fontWeight:isSel?700:400 }}>
+                  <span style={{ fontSize:14, flexShrink:0, opacity:isVisible?1:0.4 }}>{el.type==="text"?"✏️":"🖼"}</span>
+                  <span style={{ flex:1, fontSize:12, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", color:isSel?C.g1:C.ink, fontWeight:isSel?700:400, opacity:isVisible?1:0.45 }}>
                     {el.type==="text"?el.text:"画像"}
                   </span>
+                  <button onClick={e=>{e.stopPropagation();toggleVisible(el.id);}} title={isVisible?"非表示にする":"表示する"}
+                    style={{ flexShrink:0, padding:"3px 8px", background:isVisible?"#E8F5E9":C.grayLL, border:`1px solid ${isVisible?"#4CAF50":C.grayL}`, borderRadius:7, color:isVisible?"#2E7D32":C.gray, fontSize:10, fontWeight:700, cursor:"pointer" }}>
+                    {isVisible?"👁 表示":"🙈 非表示"}
+                  </button>
                   <button onClick={e=>{e.stopPropagation();updateEl(el.id,{locked:!isLocked});}}
                     style={{ flexShrink:0, padding:"3px 8px", background:isLocked?"#1E3A5F":"#E8F5E9", border:`1px solid ${isLocked?"#2563EB":"#4CAF50"}`, borderRadius:7, color:isLocked?"#60A5FA":"#2E7D32", fontSize:10, fontWeight:700, cursor:"pointer" }}>
                     {isLocked?"🔒 固定":"✏️ 編集可"}
@@ -730,7 +757,10 @@ function LayerEditor({ bgDataUrl, bgPath, sampleUrl, canvasW, canvasH, elements,
                   <button onClick={e=>{e.stopPropagation();moveLayer(el.id,"down");}} style={SB()}>↓</button>
                   <button onClick={e=>{e.stopPropagation();if(confirm("削除？"))deleteEl(el.id);}} style={SB(C.red)}>✕</button>
                 </div>
-
+            );
+            return (
+              <SortableLayerRow key={el.id} id={el.id} header={header}>
+              <div style={{ borderBottom:idx<sortedEls.length-1?`1px solid ${C.grayLL}`:"none" }}>
                 {isSel&&(
                   <div style={{ padding:"8px 14px 10px", background:`${C.g1}06`, borderTop:`1px solid ${C.grayLL}`, display:"flex", flexDirection:"column", gap:6 }}>
                     <SliderRow label="🔄 回転" min={-180} max={180} value={el.rotate||0} onChange={v=>updateEl(el.id,{rotate:v})} unit="°" onReset={()=>updateEl(el.id,{rotate:0})} />
@@ -804,8 +834,11 @@ function LayerEditor({ bgDataUrl, bgPath, sampleUrl, canvasW, canvasH, elements,
                   </div>
                 )}
               </div>
+              </SortableLayerRow>
             );
           })}
+          </SortableContext>
+          </DndContext>
         </div>
       )}
 

@@ -1,4 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { DndContext, closestCenter } from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
+import SortableLayerRow from "./SortableLayerRow";
+import { useLayerDndSensors } from "./useLayerDndSensors";
 
 const fl = document.createElement("link");
 fl.rel = "stylesheet";
@@ -45,13 +49,13 @@ const defaultText = (zIndex=0) => ({
   shadow:false, outline:false, outlineColor:"#000000", outlineWidth:4,
   glow:false, glowColor:"#FF6600",
   x:540, y:960, scale:1, rotate:0, zIndex,
-  locked: false,
+  locked: false, visible: true,
 });
 
 const defaultImage = (src, w, h, zIndex=0) => ({
   id:uid(), type:"image", src, naturalW:w, naturalH:h,
   x:540, y:960, scale:1, rotate:0, zIndex,
-  locked: false,
+  locked: false, visible: true,
 });
 
 const imgCache = {};
@@ -197,6 +201,18 @@ function MainApp() {
       return arr.map((el,i)=>({...el,zIndex:i}));
     });
   };
+  const reorderLayers = (newOrderIdsFrontToBack)=>{
+    pushHistory(elements);
+    const total=newOrderIdsFrontToBack.length;
+    setElements(e=>e.map(el=>{
+      const idx=newOrderIdsFrontToBack.indexOf(el.id);
+      return idx===-1 ? el : {...el, zIndex: total-1-idx};
+    }));
+  };
+  const toggleVisible = (id)=>{
+    pushHistory(elements);
+    setElements(e=>e.map(el=>el.id===id?{...el, visible: el.visible===false}:el));
+  };
 
   const startNew = async (tmplTab) => {
     setActiveTab(tmplTab.id);
@@ -259,7 +275,7 @@ function MainApp() {
     <div style={{ minHeight:"100vh", background:C.cream, fontFamily:"'Noto Sans JP',sans-serif", color:C.ink, overflowY:"auto" }}>
       <AppHeader screen={screen} onBack={screen==="preview"?()=>setScreen("home"):screen==="done"?()=>setScreen("preview"):null} onSave={screen==="preview"?saveWork:null} onUndo={screen==="preview"&&history.length>0?undo:null} />
       {screen==="home"    && <HomeScreen tabs={tabs} saves={saves} onNew={startNew} onLoad={loadWork} onDelete={deleteWork} onRename={renameWork} />}
-      {screen==="preview" && <PreviewScreen tab={tab} elements={elements} setElements={setElements} selected={selected} setSelected={setSelected} editing={editing} setEditing={setEditing} bgImg={bgImg} sampleImg={sampleImg} canvasRef={previewRef} PW={PW} PH={PH} R={R} addText={addText} addImage={addImage} updateEl={updateEl} deleteEl={deleteEl} duplicateEl={duplicateEl} moveLayer={moveLayer} pushHistory={pushHistory} onGenerate={generate} generating={generating} tabSaves={tabSaves} onLoad={loadWork} onDelete={deleteWork} onRename={renameWork} />}
+      {screen==="preview" && <PreviewScreen tab={tab} elements={elements} setElements={setElements} selected={selected} setSelected={setSelected} editing={editing} setEditing={setEditing} bgImg={bgImg} sampleImg={sampleImg} canvasRef={previewRef} PW={PW} PH={PH} R={R} addText={addText} addImage={addImage} updateEl={updateEl} deleteEl={deleteEl} duplicateEl={duplicateEl} moveLayer={moveLayer} reorderLayers={reorderLayers} toggleVisible={toggleVisible} pushHistory={pushHistory} onGenerate={generate} generating={generating} tabSaves={tabSaves} onLoad={loadWork} onDelete={deleteWork} onRename={renameWork} />}
       {screen==="done"    && <DoneScreen downloadUrl={downloadUrl} onReset={reset} onBack={()=>setScreen("preview")} />}
       <style>{`@keyframes spin{to{transform:rotate(360deg)}} @keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}} *{box-sizing:border-box} input::placeholder{color:#C0B8B0} textarea::placeholder{color:#C0B8B0}`}</style>
     </div>
@@ -353,7 +369,8 @@ function HomeScreen({ tabs, saves, onNew, onLoad, onDelete, onRename }) {
   );
 }
 
-function PreviewScreen({ tab, elements, setElements, selected, setSelected, editing, setEditing, bgImg, sampleImg, canvasRef, PW, PH, R, addText, addImage, updateEl, deleteEl, duplicateEl, moveLayer, pushHistory, onGenerate, generating, tabSaves, onLoad, onDelete, onRename }) {
+function PreviewScreen({ tab, elements, setElements, selected, setSelected, editing, setEditing, bgImg, sampleImg, canvasRef, PW, PH, R, addText, addImage, updateEl, deleteEl, duplicateEl, moveLayer, reorderLayers, toggleVisible, pushHistory, onGenerate, generating, tabSaves, onLoad, onDelete, onRename }) {
+  const dndSensors = useLayerDndSensors();
   const dragging    = useRef(null);
   const pinchRef    = useRef({ lastDist:null });
   const lastTap     = useRef(0);
@@ -365,7 +382,7 @@ function PreviewScreen({ tab, elements, setElements, selected, setSelected, edit
 
   const activateInlineEdit = (cx, cy)=>{
     const{x,y}=getXY(cx,cy);
-    const sorted=[...elements].filter(el=>el&&el.type==="text"&&!el.locked).sort((a,b)=>b.zIndex-a.zIndex);
+    const sorted=[...elements].filter(el=>el&&el.type==="text"&&!el.locked&&el.visible!==false).sort((a,b)=>b.zIndex-a.zIndex);
     for(const el of sorted){
       const dist=Math.sqrt(Math.pow(x-el.x,2)+Math.pow(y-el.y,2));
       if(dist<200){
@@ -425,6 +442,14 @@ function PreviewScreen({ tab, elements, setElements, selected, setSelected, edit
   const onTouchEnd = ()=>{ pinchRef.current.lastDist=null; onMouseUp(); };
 
   const sortedEls = [...elements].sort((a,b)=>b.zIndex-a.zIndex);
+  const sortedIds = sortedEls.map(el=>el.id);
+  const handleDragEnd = (event)=>{
+    const { active, over } = event;
+    if(!over || active.id===over.id) return;
+    const oldIndex=sortedIds.indexOf(active.id), newIndex=sortedIds.indexOf(over.id);
+    if(oldIndex===-1||newIndex===-1) return;
+    reorderLayers(arrayMove(sortedIds, oldIndex, newIndex));
+  };
 
   return (
     <div style={{ maxWidth:520, margin:"0 auto", padding:"12px 16px 40px" }}>
@@ -473,22 +498,25 @@ function PreviewScreen({ tab, elements, setElements, selected, setSelected, edit
 
       {elements.length>0&&(
         <div style={{ marginTop:12, background:C.white, borderRadius:12, border:`1px solid ${C.grayLL}`, overflow:"hidden" }}>
-          <p style={{ margin:0, padding:"10px 14px", fontSize:12, fontWeight:700, color:C.inkS, borderBottom:`1px solid ${C.grayLL}`, background:C.cream }}>レイヤー（上が前面）　↑↓で並び替え</p>
+          <p style={{ margin:0, padding:"10px 14px", fontSize:12, fontWeight:700, color:C.inkS, borderBottom:`1px solid ${C.grayLL}`, background:C.cream }}>レイヤー（上が前面）　↑↓・長押しドラッグで並び替え</p>
+          <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={sortedIds} strategy={verticalListSortingStrategy}>
           <div style={{ display:"flex", flexDirection:"column" }}>
             {sortedEls.map((el,idx)=>{
               const isLocked = el.locked === true;
-              return (
-                <div key={el.id} style={{ borderBottom:idx<sortedEls.length-1?`1px solid ${C.grayLL}`:"none" }}>
+              const isVisible = el.visible !== false;
+              const header = (
                   <div onClick={()=>{ if(!isLocked){ setSelected(el.id); if(editing!==el.id)setEditing(null); } }}
                     style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 12px", background:selected===el.id?`${C.g1}10`:isLocked?`#F5F5F5`:C.white, cursor:isLocked?"not-allowed":"pointer" }}>
-                    <span style={{ fontSize:16, flexShrink:0 }}>{isLocked?"🔒":el.type==="text"?"✏️":"🖼"}</span>
-                    <span style={{ flex:1, fontSize:12, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", color:isLocked?C.gray:selected===el.id?C.g1:C.ink, fontWeight:selected===el.id?700:400 }}>
+                    <span style={{ fontSize:16, flexShrink:0, opacity:isVisible?1:0.4 }}>{isLocked?"🔒":el.type==="text"?"✏️":"🖼"}</span>
+                    <span style={{ flex:1, fontSize:12, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", color:isLocked?C.gray:selected===el.id?C.g1:C.ink, fontWeight:selected===el.id?700:400, opacity:isVisible?1:0.45 }}>
                       {el.type==="text"?el.text:"画像"}
                     </span>
                     {isLocked ? (
                       <span style={{ fontSize:10, color:C.gray, background:C.grayLL, padding:"2px 8px", borderRadius:10, flexShrink:0 }}>固定</span>
                     ) : (
                       <div style={{ display:"flex", gap:4, flexShrink:0 }}>
+                        <button onClick={e=>{e.stopPropagation();toggleVisible(el.id);}} title={isVisible?"非表示にする":"表示する"} style={SB(isVisible?"#4CAF50":C.grayL)}>{isVisible?"👁":"🙈"}</button>
                         {selected===el.id&&el.type==="text"&&editing!==el.id&&(
                           <button onClick={e=>{e.stopPropagation();setEditing(el.id);}} style={{ padding:"4px 10px", background:C.g1, border:"none", borderRadius:6, color:C.white, fontSize:11, fontWeight:700, cursor:"pointer" }}>編集</button>
                         )}
@@ -499,6 +527,10 @@ function PreviewScreen({ tab, elements, setElements, selected, setSelected, edit
                       </div>
                     )}
                   </div>
+              );
+              return (
+                <SortableLayerRow key={el.id} id={el.id} disabled={isLocked} header={header}>
+                <div style={{ borderBottom:idx<sortedEls.length-1?`1px solid ${C.grayLL}`:"none" }}>
                   {!isLocked&&selected===el.id&&editing!==el.id&&(
                     <div style={{ padding:"8px 14px 10px", background:`${C.g1}06`, borderTop:`1px solid ${C.grayLL}`, display:"flex", flexDirection:"column", gap:6 }}>
                       <div style={{ display:"flex", alignItems:"center", gap:8 }}>
@@ -564,9 +596,12 @@ function PreviewScreen({ tab, elements, setElements, selected, setSelected, edit
                     </div>
                   )}
                 </div>
+                </SortableLayerRow>
               );
             })}
           </div>
+          </SortableContext>
+          </DndContext>
         </div>
       )}
 
@@ -620,7 +655,7 @@ function drawCanvas(canvas, elements, bgImg, W, H, selectedId, CW, CH) {
   ctx.clearRect(0,0,W,H); ctx.save(); ctx.beginPath(); ctx.rect(0,0,W,H); ctx.clip();
   if(bgImg){ ctx.drawImage(bgImg,0,0,W,H); }
   else { const g=ctx.createLinearGradient(0,0,W,0); g.addColorStop(0,"rgb(235,97,0)"); g.addColorStop(1,"rgb(241,141,0)"); ctx.fillStyle=g; ctx.fillRect(0,0,W,H); }
-  [...elements].sort((a,b)=>a.zIndex-b.zIndex).forEach(el=>{ if(el.type==="image") drawImageEl(ctx,el,r,selectedId===el.id); else drawTextEl(ctx,el,r,selectedId===el.id); });
+  [...elements].sort((a,b)=>a.zIndex-b.zIndex).forEach(el=>{ if(el.visible===false)return; if(el.type==="image") drawImageEl(ctx,el,r,selectedId===el.id); else drawTextEl(ctx,el,r,selectedId===el.id); });
   ctx.restore();
 }
 
