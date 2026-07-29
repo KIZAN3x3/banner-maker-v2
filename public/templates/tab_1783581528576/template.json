@@ -164,7 +164,7 @@
       "scale": 2.4,
       "rotate": 0,
       "zIndex": 8,
-      "locked": true,
+      "locked": false,
       "visible": true
     }
   ]
