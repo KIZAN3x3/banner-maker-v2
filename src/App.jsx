@@ -116,6 +116,7 @@ function MainApp() {
   const [selected,   setSelected]   = useState(null);
   const [editing,    setEditing]    = useState(null);
   const [history,    setHistory]    = useState([]);
+  const [redoStack,  setRedoStack]  = useState([]);
   const [saves,      setSaves]      = useState(()=>{ try{return JSON.parse(localStorage.getItem(SS_KEY)||"{}");}catch{return {};} });
   const [bgImg,      setBgImg]      = useState(null);
   const [sampleImg,  setSampleImg]  = useState(null);
@@ -157,8 +158,22 @@ function MainApp() {
     drawCanvas(previewRef.current,elements,bgImg,PW,PH,selected,CW_,CH_);
   },[screen,elements,bgImg,fontsReady,PW,PH,selected,CW_,CH_]);
 
-  const pushHistory = useCallback((els)=>{ setHistory(h=>[...h.slice(-49),JSON.parse(JSON.stringify(els))]); },[]);
-  const undo = ()=>{ if(!history.length)return; setElements(history[history.length-1]); setHistory(h=>h.slice(0,-1)); };
+  const pushHistory = useCallback((els)=>{
+    setHistory(h=>[...h.slice(-49),JSON.parse(JSON.stringify(els))]);
+    setRedoStack([]); // 新しい操作をしたらRedo履歴は無効になる
+  },[]);
+  const undo = ()=>{
+    if(!history.length)return;
+    setRedoStack(r=>[...r.slice(-49), JSON.parse(JSON.stringify(elements))]);
+    setElements(history[history.length-1]);
+    setHistory(h=>h.slice(0,-1));
+  };
+  const redo = ()=>{
+    if(!redoStack.length)return;
+    setHistory(h=>[...h.slice(-49), JSON.parse(JSON.stringify(elements))]);
+    setElements(redoStack[redoStack.length-1]);
+    setRedoStack(r=>r.slice(0,-1));
+  };
 
   const addText = ()=>{
     pushHistory(elements);
@@ -216,7 +231,7 @@ function MainApp() {
 
   const startNew = async (tmplTab) => {
     setActiveTab(tmplTab.id);
-    setElements([]); setSelected(null); setEditing(null); setHistory([]);
+    setElements([]); setSelected(null); setEditing(null); setHistory([]); setRedoStack([]);
     const tmpl = await fetchTemplateForTab(tmplTab.id);
     if (tmpl && Array.isArray(tmpl.elements) && tmpl.elements.length > 0) {
       tmpl.elements.forEach(el=>{
@@ -241,7 +256,7 @@ function MainApp() {
     if(name===null||!name.trim())return;
     const updated={...saves,[id]:{...work,name:name.trim()}}; setSaves(updated); localStorage.setItem(SS_KEY,JSON.stringify(updated));
   };
-  const loadWork  = (work)=>{ setActiveTab(work.tab); setElements(work.elements); setSelected(null); setEditing(null); setHistory([]); setScreen("preview"); };
+  const loadWork  = (work)=>{ setActiveTab(work.tab); setElements(work.elements); setSelected(null); setEditing(null); setHistory([]); setRedoStack([]); setScreen("preview"); };
   const deleteWork= (id)=>{ const u={...saves}; delete u[id]; setSaves(u); localStorage.setItem(SS_KEY,JSON.stringify(u)); };
 
   const generate = async()=>{
@@ -251,7 +266,7 @@ function MainApp() {
     drawCanvas(canvas,elements,bgImg,CW_,CH_,null,CW_,CH_);
     setDownloadUrl(canvas.toDataURL("image/png")); setGenerating(false); setScreen("done");
   };
-  const reset = ()=>{ setElements([]); setSelected(null); setEditing(null); setHistory([]); setDownloadUrl(null); setScreen("home"); };
+  const reset = ()=>{ setElements([]); setSelected(null); setEditing(null); setHistory([]); setRedoStack([]); setDownloadUrl(null); setScreen("home"); };
 
   const tabSaves = Object.values(saves).filter(s=>s.tab===activeTab).sort((a,b)=>b.createdAt-a.createdAt);
 
@@ -275,7 +290,7 @@ function MainApp() {
     <div style={{ minHeight:"100vh", background:C.cream, fontFamily:"'Noto Sans JP',sans-serif", color:C.ink, overflowY:"auto" }}>
       <AppHeader screen={screen} onBack={screen==="preview"?()=>setScreen("home"):screen==="done"?()=>setScreen("preview"):null} onSave={screen==="preview"?saveWork:null} onUndo={screen==="preview"&&history.length>0?undo:null} />
       {screen==="home"    && <HomeScreen tabs={tabs} saves={saves} onNew={startNew} onLoad={loadWork} onDelete={deleteWork} onRename={renameWork} />}
-      {screen==="preview" && <PreviewScreen tab={tab} elements={elements} setElements={setElements} selected={selected} setSelected={setSelected} editing={editing} setEditing={setEditing} bgImg={bgImg} sampleImg={sampleImg} canvasRef={previewRef} PW={PW} PH={PH} R={R} addText={addText} addImage={addImage} updateEl={updateEl} deleteEl={deleteEl} duplicateEl={duplicateEl} moveLayer={moveLayer} reorderLayers={reorderLayers} toggleVisible={toggleVisible} pushHistory={pushHistory} onGenerate={generate} generating={generating} tabSaves={tabSaves} onLoad={loadWork} onDelete={deleteWork} onRename={renameWork} />}
+      {screen==="preview" && <PreviewScreen tab={tab} elements={elements} setElements={setElements} selected={selected} setSelected={setSelected} editing={editing} setEditing={setEditing} bgImg={bgImg} sampleImg={sampleImg} canvasRef={previewRef} PW={PW} PH={PH} R={R} addText={addText} addImage={addImage} updateEl={updateEl} deleteEl={deleteEl} duplicateEl={duplicateEl} moveLayer={moveLayer} reorderLayers={reorderLayers} toggleVisible={toggleVisible} pushHistory={pushHistory} undo={undo} redo={redo} canUndo={history.length>0} canRedo={redoStack.length>0} onGenerate={generate} generating={generating} tabSaves={tabSaves} onLoad={loadWork} onDelete={deleteWork} onRename={renameWork} />}
       {screen==="done"    && <DoneScreen downloadUrl={downloadUrl} onReset={reset} onBack={()=>setScreen("preview")} />}
       <style>{`@keyframes spin{to{transform:rotate(360deg)}} @keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}} *{box-sizing:border-box} input::placeholder{color:#C0B8B0} textarea::placeholder{color:#C0B8B0}`}</style>
     </div>
@@ -369,7 +384,7 @@ function HomeScreen({ tabs, saves, onNew, onLoad, onDelete, onRename }) {
   );
 }
 
-function PreviewScreen({ tab, elements, setElements, selected, setSelected, editing, setEditing, bgImg, sampleImg, canvasRef, PW, PH, R, addText, addImage, updateEl, deleteEl, duplicateEl, moveLayer, reorderLayers, toggleVisible, pushHistory, onGenerate, generating, tabSaves, onLoad, onDelete, onRename }) {
+function PreviewScreen({ tab, elements, setElements, selected, setSelected, editing, setEditing, bgImg, sampleImg, canvasRef, PW, PH, R, addText, addImage, updateEl, deleteEl, duplicateEl, moveLayer, reorderLayers, toggleVisible, pushHistory, undo, redo, canUndo, canRedo, onGenerate, generating, tabSaves, onLoad, onDelete, onRename }) {
   const dndSensors = useLayerDndSensors();
   const dragging    = useRef(null);
   const pinchRef    = useRef({ lastDist:null });
@@ -494,6 +509,8 @@ function PreviewScreen({ tab, elements, setElements, selected, setSelected, edit
           ＋ 画像
           <input ref={imgInputRef} type="file" accept="image/*" style={{ display:"none" }} onChange={e=>{if(e.target.files[0])addImage(e.target.files[0]);e.target.value="";}} />
         </label>
+        <button onClick={undo} disabled={!canUndo} style={TB(C.inkS, !canUndo)}>↩ 1つ戻る</button>
+        <button onClick={redo} disabled={!canRedo} style={TB(C.inkS, !canRedo)}>↪ 1つ進む</button>
       </div>
 
       {elements.length>0&&(
@@ -705,7 +722,7 @@ function drawImageEl(ctx, el, r, isSelected) {
 function getElHalfW(el){ if(el.type==="image")return el.naturalW/2; const fs=TEXT_SIZES[el.size]||72; if(el.vertical)return fs*0.6; return Math.max(...el.text.split("\n").map(l=>l.length))*fs*0.55; }
 function getElHalfH(el){ if(el.type==="image")return el.naturalH/2; const fs=TEXT_SIZES[el.size]||72; if(el.vertical)return el.text.length*fs*1.1/2; return el.text.split("\n").length*fs*1.3/2; }
 
-const TB=(bg)=>({ padding:"9px 16px", background:bg, border:"none", borderRadius:10, color:C.white, fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"'Noto Sans JP',sans-serif", display:"flex", alignItems:"center", gap:4 });
+const TB=(bg,disabled)=>({ padding:"9px 16px", background:disabled?C.grayLL:bg, border:"none", borderRadius:10, color:disabled?C.gray:C.white, fontSize:12, fontWeight:700, cursor:disabled?"not-allowed":"pointer", fontFamily:"'Noto Sans JP',sans-serif", display:"flex", alignItems:"center", gap:4 });
 const SB=(bg=C.grayL)=>({ padding:"4px 8px", background:bg, border:"none", borderRadius:5, color:bg===C.grayL?C.ink:C.white, fontSize:10, cursor:"pointer" });
 const LS={ display:"block", fontSize:11, fontWeight:700, color:C.gray, marginBottom:5 };
 const SS={ width:"100%", padding:"9px 12px", marginBottom:10, background:C.cream, border:`1px solid ${C.grayL}`, borderRadius:8, fontSize:13, fontFamily:"'Noto Sans JP',sans-serif", color:C.ink, outline:"none" };
