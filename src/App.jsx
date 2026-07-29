@@ -646,7 +646,59 @@ function PreviewScreen({ tab, elements, setElements, selected, setSelected, edit
   );
 }
 
+async function dataUrlToFile(dataUrl, filename) {
+  const res = await fetch(dataUrl);
+  const blob = await res.blob();
+  return new File([blob], filename, { type: "image/png" });
+}
+
+function triggerAnchorDownload(dataUrl, filename) {
+  const a = document.createElement("a");
+  a.href = dataUrl;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
 function DoneScreen({ downloadUrl, onReset, onBack }) {
+  const [saving, setSaving] = useState(false);
+  const [toast,  setToast]  = useState("");
+  const toastTimer = useRef(null);
+
+  useEffect(()=>()=>{ if(toastTimer.current) clearTimeout(toastTimer.current); },[]);
+
+  const showToast = (msg)=>{
+    setToast(msg);
+    if(toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(()=>setToast(""), 2800);
+  };
+
+  const handleSave = async ()=>{
+    if(!downloadUrl || saving) return;
+    const filename = `banner_${new Date().toLocaleDateString("ja-JP").replace(/\//g,"-")}_${Date.now()}.png`;
+    setSaving(true);
+    try {
+      if (navigator.share && navigator.canShare) {
+        try {
+          const file = await dataUrlToFile(downloadUrl, filename);
+          if (navigator.canShare({ files:[file] })) {
+            await navigator.share({ files:[file], title:"バナー画像" });
+            showToast("✓ 保存しました");
+            return;
+          }
+        } catch(err) {
+          if (err && err.name==="AbortError") return; // 共有シートをキャンセル→通知なし
+          // それ以外のエラーは<a download>にフォールバック
+        }
+      }
+      triggerAnchorDownload(downloadUrl, filename);
+      showToast("✓ 保存しました");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div style={{ maxWidth:520, margin:"0 auto", padding:"36px 16px" }}>
       <div style={{ textAlign:"center", marginBottom:24 }}>
@@ -659,9 +711,14 @@ function DoneScreen({ downloadUrl, onReset, onBack }) {
           <img src={downloadUrl} style={{ height:480, width:"auto", display:"block" }} />
         </div>
       )}
-      <a href={downloadUrl} download={`banner_${new Date().toLocaleDateString("ja-JP").replace(/\//g,"-")}_${Date.now()}.png`} style={{ display:"block", width:"100%", padding:"17px", background:`linear-gradient(135deg,${C.g1} 7%,${C.g2} 97%)`, borderRadius:14, textAlign:"center", color:C.white, fontSize:15, fontWeight:700, textDecoration:"none", fontFamily:"'Noto Sans JP',sans-serif", boxShadow:`0 6px 28px ${C.g1}50`, marginBottom:10 }}>↓ ダウンロード（PNG）</a>
+      <button onClick={handleSave} disabled={saving} style={{ display:"block", width:"100%", padding:"17px", background:saving?`${C.g1}80`:`linear-gradient(135deg,${C.g1} 7%,${C.g2} 97%)`, border:"none", borderRadius:14, textAlign:"center", color:C.white, fontSize:15, fontWeight:700, fontFamily:"'Noto Sans JP',sans-serif", cursor:saving?"not-allowed":"pointer", boxShadow:`0 6px 28px ${C.g1}50`, marginBottom:10 }}>↓ ダウンロード（PNG）</button>
       <button onClick={onBack}  style={{ width:"100%", padding:"13px", background:"transparent", border:`1.5px solid ${C.grayL}`, borderRadius:14, color:C.inkS, fontSize:14, fontFamily:"'Noto Sans JP',sans-serif", cursor:"pointer", marginBottom:8 }}>← 編集に戻る</button>
       <button onClick={onReset} style={{ width:"100%", padding:"13px", background:"transparent", border:`1.5px solid ${C.grayL}`, borderRadius:14, color:C.gray, fontSize:13, fontFamily:"'Noto Sans JP',sans-serif", cursor:"pointer" }}>最初からやり直す</button>
+      {toast&&(
+        <div style={{ position:"fixed", left:"50%", bottom:28, transform:"translateX(-50%)", background:C.ink, color:C.white, padding:"12px 22px", borderRadius:999, fontSize:13, fontWeight:700, boxShadow:"0 10px 30px rgba(0,0,0,0.35)", display:"flex", alignItems:"center", gap:8, zIndex:500, animation:"fadeUp 0.25s ease", fontFamily:"'Noto Sans JP',sans-serif", whiteSpace:"nowrap" }}>
+          {toast}
+        </div>
+      )}
     </div>
   );
 }
