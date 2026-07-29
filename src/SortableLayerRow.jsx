@@ -22,7 +22,13 @@ export default function SortableLayerRow({ id, disabled, header, children }) {
         {...attributes}
         {...listeners}
         style={{
-          touchAction: "manipulation",
+          // dnd-kitはPointer EventでのスクロールをpreventDefault()だけでは止められないため、
+          // ドラッグ対象要素にはtouch-action:noneが必須(manipulationでは不十分でAndroidで
+          // 長押し後の移動がネイティブスクロールに奪われてドラッグが解除される)。
+          touchAction: disabled ? "auto" : "none",
+          WebkitUserSelect: "none",
+          userSelect: "none",
+          WebkitTouchCallout: "none",
           cursor: disabled ? "default" : "grab",
           opacity: isDragging ? 0.9 : 1,
           boxShadow: isDragging ? "0 10px 28px rgba(0,0,0,0.28)" : "none",
