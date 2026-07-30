@@ -288,16 +288,16 @@ function MainApp() {
 
   return (
     <div style={{ minHeight:"100vh", background:C.cream, fontFamily:"'Noto Sans JP',sans-serif", color:C.ink, overflowY:"auto" }}>
-      <AppHeader screen={screen} onBack={screen==="preview"?()=>setScreen("home"):screen==="done"?()=>setScreen("preview"):null} onSave={screen==="preview"?saveWork:null} onUndo={screen==="preview"&&history.length>0?undo:null} />
+      <AppHeader screen={screen} onBack={screen==="preview"?()=>setScreen("home"):screen==="done"?()=>setScreen("preview"):null} onUndo={screen==="preview"&&history.length>0?undo:null} />
       {screen==="home"    && <HomeScreen tabs={tabs} saves={saves} onNew={startNew} onLoad={loadWork} onDelete={deleteWork} onRename={renameWork} />}
-      {screen==="preview" && <PreviewScreen tab={tab} elements={elements} setElements={setElements} selected={selected} setSelected={setSelected} editing={editing} setEditing={setEditing} bgImg={bgImg} sampleImg={sampleImg} canvasRef={previewRef} PW={PW} PH={PH} R={R} addText={addText} addImage={addImage} updateEl={updateEl} deleteEl={deleteEl} duplicateEl={duplicateEl} moveLayer={moveLayer} reorderLayers={reorderLayers} toggleVisible={toggleVisible} pushHistory={pushHistory} undo={undo} redo={redo} canUndo={history.length>0} canRedo={redoStack.length>0} onGenerate={generate} generating={generating} tabSaves={tabSaves} onLoad={loadWork} onDelete={deleteWork} onRename={renameWork} />}
+      {screen==="preview" && <PreviewScreen tab={tab} elements={elements} setElements={setElements} selected={selected} setSelected={setSelected} editing={editing} setEditing={setEditing} bgImg={bgImg} sampleImg={sampleImg} canvasRef={previewRef} PW={PW} PH={PH} R={R} addText={addText} addImage={addImage} updateEl={updateEl} deleteEl={deleteEl} duplicateEl={duplicateEl} moveLayer={moveLayer} reorderLayers={reorderLayers} toggleVisible={toggleVisible} pushHistory={pushHistory} undo={undo} redo={redo} canUndo={history.length>0} canRedo={redoStack.length>0} onGenerate={generate} generating={generating} onSave={saveWork} tabSaves={tabSaves} onLoad={loadWork} onDelete={deleteWork} onRename={renameWork} />}
       {screen==="done"    && <DoneScreen downloadUrl={downloadUrl} onReset={reset} onBack={()=>setScreen("preview")} />}
       <style>{`@keyframes spin{to{transform:rotate(360deg)}} @keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}} *{box-sizing:border-box} input::placeholder{color:#C0B8B0} textarea::placeholder{color:#C0B8B0}`}</style>
     </div>
   );
 }
 
-function AppHeader({ screen, onBack, onSave, onUndo }) {
+function AppHeader({ screen, onBack, onUndo }) {
   return (
     <header style={{ background:C.ink, height:56, display:"flex", alignItems:"center", padding:"0 16px", gap:10, position:"sticky", top:0, zIndex:300, boxShadow:"0 2px 20px #00000055" }}>
       {onBack ? <button onClick={onBack} style={{ background:"none", border:"none", cursor:"pointer", color:C.white, fontSize:26, lineHeight:1, padding:"0 8px 0 0", marginLeft:-4 }}>‹</button>
@@ -305,7 +305,6 @@ function AppHeader({ screen, onBack, onSave, onUndo }) {
       <p style={{ margin:0, fontSize:14, fontWeight:700, color:C.white, flex:1 }}>バナーメーカー</p>
       <div style={{ display:"flex", gap:8 }}>
         {onUndo&&<button onClick={onUndo} style={{ background:`${C.white}15`, border:"none", borderRadius:8, padding:"6px 12px", color:C.white, fontSize:12, cursor:"pointer" }}>↩ 戻す</button>}
-        {onSave&&<button onClick={onSave} style={{ background:`linear-gradient(135deg,${C.g1},${C.g2})`, border:"none", borderRadius:8, padding:"6px 14px", color:C.white, fontSize:12, fontWeight:700, cursor:"pointer" }}>保存</button>}
       </div>
     </header>
   );
@@ -384,7 +383,7 @@ function HomeScreen({ tabs, saves, onNew, onLoad, onDelete, onRename }) {
   );
 }
 
-function PreviewScreen({ tab, elements, setElements, selected, setSelected, editing, setEditing, bgImg, sampleImg, canvasRef, PW, PH, R, addText, addImage, updateEl, deleteEl, duplicateEl, moveLayer, reorderLayers, toggleVisible, pushHistory, undo, redo, canUndo, canRedo, onGenerate, generating, tabSaves, onLoad, onDelete, onRename }) {
+function PreviewScreen({ tab, elements, setElements, selected, setSelected, editing, setEditing, bgImg, sampleImg, canvasRef, PW, PH, R, addText, addImage, updateEl, deleteEl, duplicateEl, moveLayer, reorderLayers, toggleVisible, pushHistory, undo, redo, canUndo, canRedo, onGenerate, generating, onSave, tabSaves, onLoad, onDelete, onRename }) {
   const dndSensors = useLayerDndSensors();
   const dragging    = useRef(null);
   const pinchRef    = useRef({ lastDist:null });
@@ -639,7 +638,13 @@ function PreviewScreen({ tab, elements, setElements, selected, setSelected, edit
         </div>
       )}
 
-      <button onClick={onGenerate} disabled={generating} style={{ width:"100%", marginTop:16, padding:"16px", background:generating?`${C.g1}60`:`linear-gradient(135deg,${C.g1} 7%,${C.g2} 97%)`, border:"none", borderRadius:14, color:C.white, fontSize:15, fontWeight:700, fontFamily:"'Noto Sans JP',sans-serif", cursor:generating?"not-allowed":"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
+      {onSave&&(
+        <button onClick={onSave} style={{ width:"100%", marginTop:28, padding:"13px", background:C.white, border:`1.5px solid ${C.grayL}`, borderRadius:12, color:C.inkS, fontSize:13, fontWeight:700, fontFamily:"'Noto Sans JP',sans-serif", cursor:"pointer" }}>
+          💾 途中保存
+        </button>
+      )}
+
+      <button onClick={onGenerate} disabled={generating} style={{ width:"100%", marginTop:14, padding:"16px", background:generating?`${C.g1}60`:`linear-gradient(135deg,${C.g1} 7%,${C.g2} 97%)`, border:"none", borderRadius:14, color:C.white, fontSize:15, fontWeight:700, fontFamily:"'Noto Sans JP',sans-serif", cursor:generating?"not-allowed":"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
         {generating?<><Spinner size={18} color={C.white}/>生成中...</>:"✦ バナーを生成する"}
       </button>
     </div>
