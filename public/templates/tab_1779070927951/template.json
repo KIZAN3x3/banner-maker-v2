@@ -44,7 +44,7 @@
       "y": 486,
       "scale": 1.6,
       "rotate": 0,
-      "zIndex": 2,
+      "zIndex": 17,
       "locked": false
     },
     {
@@ -65,7 +65,7 @@
       "y": 450,
       "scale": 1,
       "rotate": 0,
-      "zIndex": 3,
+      "zIndex": 16,
       "locked": false
     },
     {
@@ -86,7 +86,7 @@
       "y": 504.75,
       "scale": 1.51,
       "rotate": 0,
-      "zIndex": 4,
+      "zIndex": 15,
       "locked": false
     },
     {
@@ -107,7 +107,7 @@
       "y": 663.75,
       "scale": 1.12,
       "rotate": 0,
-      "zIndex": 5,
+      "zIndex": 14,
       "locked": false
     },
     {
@@ -128,7 +128,7 @@
       "y": 860.25,
       "scale": 1.12,
       "rotate": 0,
-      "zIndex": 6,
+      "zIndex": 12,
       "locked": false
     },
     {
@@ -149,7 +149,7 @@
       "y": 1066.5,
       "scale": 1.12,
       "rotate": 0,
-      "zIndex": 7,
+      "zIndex": 10,
       "locked": false
     },
     {
@@ -170,7 +170,7 @@
       "y": 758.25,
       "scale": 1.5,
       "rotate": 0,
-      "zIndex": 8,
+      "zIndex": 13,
       "locked": false
     },
     {
@@ -191,7 +191,7 @@
       "y": 952.5,
       "scale": 1.5,
       "rotate": 0,
-      "zIndex": 9,
+      "zIndex": 11,
       "locked": false
     },
     {
@@ -212,7 +212,7 @@
       "y": 1167,
       "scale": 1.5,
       "rotate": 0,
-      "zIndex": 10,
+      "zIndex": 9,
       "locked": false
     },
     {
@@ -233,7 +233,7 @@
       "y": 717.75,
       "scale": 1,
       "rotate": 0,
-      "zIndex": 11,
+      "zIndex": 8,
       "locked": false
     },
     {
@@ -254,7 +254,7 @@
       "y": 909.75,
       "scale": 0.9,
       "rotate": 0,
-      "zIndex": 12,
+      "zIndex": 7,
       "locked": false
     },
     {
@@ -275,7 +275,7 @@
       "y": 1139.25,
       "scale": 1,
       "rotate": 0,
-      "zIndex": 13,
+      "zIndex": 6,
       "locked": false
     },
     {
@@ -296,7 +296,7 @@
       "y": 919.5,
       "scale": 1,
       "rotate": 0,
-      "zIndex": 14,
+      "zIndex": 3,
       "locked": false
     },
     {
@@ -317,7 +317,7 @@
       "y": 1188,
       "scale": 1,
       "rotate": 0,
-      "zIndex": 15,
+      "zIndex": 2,
       "locked": false
     },
     {
@@ -338,7 +338,7 @@
       "y": 948,
       "scale": 1,
       "rotate": 0,
-      "zIndex": 16,
+      "zIndex": 5,
       "locked": false
     },
     {
@@ -359,7 +359,7 @@
       "y": 1241.25,
       "scale": 1,
       "rotate": 0,
-      "zIndex": 17,
+      "zIndex": 4,
       "locked": false
     }
   ]
