@@ -11,7 +11,8 @@
       "scale": 2.75,
       "rotate": 0,
       "zIndex": 0,
-      "locked": false
+      "locked": false,
+      "visible": true
     },
     {
       "id": "9x1a45l",
@@ -23,8 +24,9 @@
       "y": 415.5,
       "scale": 1.01,
       "rotate": 0,
-      "zIndex": 1,
-      "locked": false
+      "zIndex": 7,
+      "locked": false,
+      "visible": true
     },
     {
       "id": "4z81hh5",
@@ -44,7 +46,7 @@
       "y": 1412.25,
       "scale": 1.89,
       "rotate": 0,
-      "zIndex": 2,
+      "zIndex": 4,
       "locked": false
     },
     {
@@ -65,7 +67,7 @@
       "y": 1317.75,
       "scale": 0.9,
       "rotate": 0,
-      "zIndex": 3,
+      "zIndex": 6,
       "locked": false
     },
     {
@@ -86,7 +88,7 @@
       "y": 1318.5,
       "scale": 0.9,
       "rotate": 0,
-      "zIndex": 4,
+      "zIndex": 5,
       "locked": false
     },
     {
@@ -107,7 +109,7 @@
       "y": 1513.5,
       "scale": 0.68,
       "rotate": 0,
-      "zIndex": 5,
+      "zIndex": 3,
       "locked": false
     },
     {
@@ -128,7 +130,7 @@
       "y": 1570.5,
       "scale": 0.95,
       "rotate": 0,
-      "zIndex": 6,
+      "zIndex": 2,
       "locked": false
     },
     {
@@ -149,7 +151,7 @@
       "y": 1578,
       "scale": 1.31,
       "rotate": 0,
-      "zIndex": 7,
+      "zIndex": 1,
       "locked": false,
       "visible": true
     },
