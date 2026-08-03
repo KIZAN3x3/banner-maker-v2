@@ -44,7 +44,7 @@
       "y": 317.25,
       "scale": 1.6,
       "rotate": 0,
-      "zIndex": 2,
+      "zIndex": 17,
       "locked": false
     },
     {
@@ -65,7 +65,7 @@
       "y": 525,
       "scale": 1.21,
       "rotate": 0,
-      "zIndex": 3,
+      "zIndex": 16,
       "locked": false
     },
     {
@@ -86,7 +86,7 @@
       "y": 726.75,
       "scale": 4.4,
       "rotate": 0,
-      "zIndex": 4,
+      "zIndex": 18,
       "locked": false
     },
     {
@@ -107,7 +107,7 @@
       "y": 1111.5,
       "scale": 1,
       "rotate": 0,
-      "zIndex": 5,
+      "zIndex": 10,
       "locked": false
     },
     {
@@ -128,7 +128,7 @@
       "y": 1236,
       "scale": 1.98,
       "rotate": 0,
-      "zIndex": 6,
+      "zIndex": 9,
       "locked": false
     },
     {
@@ -149,7 +149,7 @@
       "y": 1265.25,
       "scale": 1.07,
       "rotate": 0,
-      "zIndex": 7,
+      "zIndex": 8,
       "locked": false
     },
     {
@@ -170,7 +170,7 @@
       "y": 1113.75,
       "scale": 1,
       "rotate": 0,
-      "zIndex": 8,
+      "zIndex": 7,
       "locked": false
     },
     {
@@ -191,7 +191,7 @@
       "y": 1173,
       "scale": 1.11,
       "rotate": 0,
-      "zIndex": 9,
+      "zIndex": 6,
       "locked": false
     },
     {
@@ -212,7 +212,7 @@
       "y": 1180.5,
       "scale": 1.11,
       "rotate": 0,
-      "zIndex": 10,
+      "zIndex": 3,
       "locked": false
     },
     {
@@ -233,7 +233,7 @@
       "y": 1116.75,
       "scale": 1,
       "rotate": 0,
-      "zIndex": 11,
+      "zIndex": 4,
       "locked": false
     },
     {
@@ -254,7 +254,7 @@
       "y": 1115.25,
       "scale": 0.28,
       "rotate": 0,
-      "zIndex": 12,
+      "zIndex": 5,
       "locked": false
     },
     {
@@ -275,7 +275,7 @@
       "y": 1114,
       "scale": 0.28,
       "rotate": 0,
-      "zIndex": 13,
+      "zIndex": 2,
       "locked": false
     },
     {
@@ -296,7 +296,7 @@
       "y": 434.25,
       "scale": 0.66,
       "rotate": 0,
-      "zIndex": 14,
+      "zIndex": 15,
       "locked": false
     },
     {
@@ -317,7 +317,7 @@
       "y": 583.5,
       "scale": 1.11,
       "rotate": 0,
-      "zIndex": 15,
+      "zIndex": 12,
       "locked": false
     },
     {
@@ -338,7 +338,7 @@
       "y": 874.5,
       "scale": 1.11,
       "rotate": 0,
-      "zIndex": 16,
+      "zIndex": 11,
       "locked": false
     },
     {
@@ -359,7 +359,7 @@
       "y": 627.75,
       "scale": 1,
       "rotate": 0,
-      "zIndex": 17,
+      "zIndex": 14,
       "locked": false
     },
     {
@@ -380,7 +380,7 @@
       "y": 941.25,
       "scale": 1,
       "rotate": 0,
-      "zIndex": 18,
+      "zIndex": 13,
       "locked": false
     }
   ]
