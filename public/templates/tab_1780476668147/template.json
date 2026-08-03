@@ -44,7 +44,7 @@
       "y": 488.25,
       "scale": 1.66,
       "rotate": 0,
-      "zIndex": 2,
+      "zIndex": 17,
       "locked": false
     },
     {
@@ -65,7 +65,7 @@
       "y": 504.75,
       "scale": 0.85,
       "rotate": 0,
-      "zIndex": 3,
+      "zIndex": 15,
       "locked": false
     },
     {
@@ -86,7 +86,7 @@
       "y": 447,
       "scale": 0.33,
       "rotate": 0,
-      "zIndex": 4,
+      "zIndex": 16,
       "locked": false
     },
     {
@@ -107,7 +107,7 @@
       "y": 801,
       "scale": 0.93,
       "rotate": 0,
-      "zIndex": 5,
+      "zIndex": 8,
       "locked": false
     },
     {
@@ -170,7 +170,7 @@
       "y": 918,
       "scale": 3,
       "rotate": 0,
-      "zIndex": 8,
+      "zIndex": 3,
       "locked": false
     },
     {
@@ -191,7 +191,7 @@
       "y": 1188.75,
       "scale": 3,
       "rotate": 0,
-      "zIndex": 9,
+      "zIndex": 2,
       "locked": false
     },
     {
@@ -212,7 +212,7 @@
       "y": 951,
       "scale": 1.02,
       "rotate": 0,
-      "zIndex": 10,
+      "zIndex": 5,
       "locked": false
     },
     {
@@ -233,7 +233,7 @@
       "y": 1239.75,
       "scale": 1.02,
       "rotate": 0,
-      "zIndex": 11,
+      "zIndex": 4,
       "locked": false
     },
     {
@@ -254,7 +254,7 @@
       "y": 670.5,
       "scale": 1.3,
       "rotate": 0,
-      "zIndex": 12,
+      "zIndex": 14,
       "locked": false
     },
     {
@@ -275,7 +275,7 @@
       "y": 889.5,
       "scale": 1.3,
       "rotate": 0,
-      "zIndex": 13,
+      "zIndex": 12,
       "locked": false
     },
     {
@@ -296,7 +296,7 @@
       "y": 1115.25,
       "scale": 1.3,
       "rotate": 0,
-      "zIndex": 14,
+      "zIndex": 10,
       "locked": false
     },
     {
@@ -317,7 +317,7 @@
       "y": 776.25,
       "scale": 1.49,
       "rotate": 0,
-      "zIndex": 15,
+      "zIndex": 13,
       "locked": false
     },
     {
@@ -338,7 +338,7 @@
       "y": 986.25,
       "scale": 1.49,
       "rotate": 0,
-      "zIndex": 16,
+      "zIndex": 11,
       "locked": false
     },
     {
@@ -359,7 +359,7 @@
       "y": 1223.25,
       "scale": 1.49,
       "rotate": 0,
-      "zIndex": 17,
+      "zIndex": 9,
       "locked": false
     }
   ]
