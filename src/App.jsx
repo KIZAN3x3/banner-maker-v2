@@ -666,6 +666,8 @@ function triggerAnchorDownload(dataUrl, filename) {
   document.body.removeChild(a);
 }
 
+const isMobileDevice = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
 function DoneScreen({ downloadUrl, onReset, onBack }) {
   const [saving, setSaving] = useState(false);
   const [toast,  setToast]  = useState("");
@@ -684,7 +686,7 @@ function DoneScreen({ downloadUrl, onReset, onBack }) {
     const filename = `banner_${new Date().toLocaleDateString("ja-JP").replace(/\//g,"-")}_${Date.now()}.png`;
     setSaving(true);
     try {
-      if (navigator.share && navigator.canShare) {
+      if (isMobileDevice && navigator.share && navigator.canShare) {
         try {
           const file = await dataUrlToFile(downloadUrl, filename);
           if (navigator.canShare({ files:[file] })) {
