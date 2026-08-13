@@ -40,6 +40,7 @@ const FONTS = [
 const TEXT_SIZES = { large:120, medium:72, small:40 };
 const PASSWORD   = "123";
 const SS_KEY     = "banner_maker_v2";
+const INLINE_EDIT_ZOOM = 1.8; // テキストズーム編集の固定倍率（150〜200%の範囲内）
 
 const uid = () => Math.random().toString(36).slice(2,9);
 
@@ -449,27 +450,47 @@ function PreviewScreen({ tab, elements, setElements, selected, setSelected, edit
   const lastTap     = useRef(0);
   const lastClick   = useRef(0);
   const imgInputRef = useRef();
+  const marginScrollRef = useRef(null); // {startY, startScrollY} | null（キャンバス外余白のドラッグスクロール用）
   const [inlineEdit, setInlineEdit] = useState(null);
+
+  // ズーム編集開始時に対象テキストが画面中央に来るようスクロール（ソフトキーボード表示を考慮しvisualViewportを使用）
+  useEffect(()=>{
+    if(!inlineEdit)return;
+    const recenter = ()=>{
+      const vv=window.visualViewport;
+      const vh=vv?vv.height:window.innerHeight;
+      const vTop=vv?vv.offsetTop:0;
+      const delta=inlineEdit.targetScreenY-(vTop+vh/2);
+      window.scrollBy({ top:delta, left:0, behavior:"smooth" });
+    };
+    recenter();
+    window.visualViewport?.addEventListener("resize", recenter);
+    return ()=>window.visualViewport?.removeEventListener("resize", recenter);
+  },[inlineEdit?.id]);
 
   const getXY = (cx,cy)=>{ if(!canvasRef.current)return{x:0,y:0}; const rect=canvasRef.current.getBoundingClientRect(); return{x:(cx-rect.left)/R,y:(cy-rect.top)/R}; };
 
   const activateInlineEdit = (cx, cy)=>{
+    if(!canvasRef.current)return false;
+    const rect=canvasRef.current.getBoundingClientRect();
     const{x,y}=getXY(cx,cy);
     const sorted=[...elements].filter(el=>el&&el.type==="text"&&!el.locked&&el.visible!==false).sort((a,b)=>b.zIndex-a.zIndex);
     for(const el of sorted){
       const dist=Math.sqrt(Math.pow(x-el.x,2)+Math.pow(y-el.y,2));
       if(dist<200){
+        pushHistory(elements); // ズーム編集セッション全体を1つのUndoステップにする
         setSelected(el.id);
         const fs=(TEXT_SIZES[el.size]||72)*el.scale*R;
         const lines=el.text.split("\n");
         const w=Math.max(120, Math.max(...lines.map(l=>l.length))*fs*0.65);
         const h=Math.max(fs*1.5, lines.length*fs*1.4);
-        setInlineEdit({ id:el.id, x:el.x*R, y:el.y*R, w, h, fs, font:el.font, color:el.color });
+        setInlineEdit({ id:el.id, x:el.x*R, y:el.y*R, w, h, fs, font:el.font, color:el.color, targetScreenY: rect.top+el.y*R });
         return true;
       }
     }
     return false;
   };
+  const finishInlineEdit = ()=>setInlineEdit(null);
 
   const onCanvasClick = (e)=>{
     const now=Date.now();
@@ -514,6 +535,24 @@ function PreviewScreen({ tab, elements, setElements, selected, setSelected, edit
   };
   const onTouchEnd = ()=>{ pinchRef.current.lastDist=null; onMouseUp(); };
 
+  // キャンバス周囲の余白タッチをスクロールレーンとして扱う（キャンバス内は従来通り既存ハンドラに委ねる）
+  const onStageTouchStart = (e)=>{
+    if(inlineEdit)return;
+    if(e.touches.length!==1)return;
+    const t=e.touches[0];
+    const rect=canvasRef.current?.getBoundingClientRect();
+    const inside = rect && t.clientX>=rect.left && t.clientX<=rect.right && t.clientY>=rect.top && t.clientY<=rect.bottom;
+    marginScrollRef.current = inside ? null : { startY:t.clientY, startScrollY:window.scrollY };
+  };
+  const onStageTouchMove = (e)=>{
+    if(!marginScrollRef.current)return;
+    const t=e.touches[0];
+    const delta=t.clientY-marginScrollRef.current.startY;
+    window.scrollTo(window.scrollX, marginScrollRef.current.startScrollY-delta);
+    e.preventDefault();
+  };
+  const onStageTouchEnd = ()=>{ marginScrollRef.current=null; };
+
   const sortedEls = [...elements].sort((a,b)=>b.zIndex-a.zIndex);
   const sortedIds = sortedEls.map(el=>el.id);
   const handleDragEnd = (event)=>{
@@ -537,25 +576,45 @@ function PreviewScreen({ tab, elements, setElements, selected, setSelected, edit
         💡 キャンバス以外の場所で画面スクロールできます
       </p>
 
-      <div style={{ position:"relative", overflow:"hidden", width:PW, margin:"0 auto", border:`2px solid ${selected?C.g1:C.grayL}`, boxShadow:`0 8px 32px ${C.g1}20`, transition:"border-color 0.2s" }}>
-        <canvas ref={canvasRef} width={PW} height={PH}
-          onMouseDown={onMouseDown} onMouseMove={onMouseMove} onMouseUp={onMouseUp} onMouseLeave={onMouseUp}
-          onClick={onCanvasClick}
-          onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
-          style={{ display:"block", cursor:selected?"grab":"default", touchAction:"none", userSelect:"none" }} />
-        {inlineEdit&&(()=>{
-          const el=elements.find(el=>el.id===inlineEdit.id);
-          if(!el)return null;
-          const font=FONTS.find(f=>f.id===el.font)||FONTS[0];
-          return (
-            <textarea autoFocus value={el.text}
-              onChange={e=>updateEl(el.id,{text:e.target.value})}
-              onBlur={()=>setInlineEdit(null)}
-              onKeyDown={e=>{ if(e.key==="Escape")setInlineEdit(null); }}
-              style={{ position:"absolute", left:Math.max(0,inlineEdit.x-inlineEdit.w/2), top:Math.max(0,inlineEdit.y-inlineEdit.h/2), width:Math.min(inlineEdit.w,PW), minHeight:inlineEdit.h, fontSize:inlineEdit.fs, fontFamily:font.family+",sans-serif", fontWeight:font.weight, color:el.color, background:"rgba(0,0,0,0.5)", border:`2px solid ${C.g1}`, borderRadius:4, outline:"none", resize:"none", textAlign:"center", padding:"4px", lineHeight:1.3, boxSizing:"border-box", zIndex:10, caretColor:C.white, overflow:"hidden" }} />
-          );
-        })()}
+      <div style={{ width:"100%" }}
+        onTouchStart={onStageTouchStart} onTouchMove={onStageTouchMove} onTouchEnd={onStageTouchEnd}>
+        <div style={{ position:"relative", overflow:inlineEdit?"visible":"hidden", width:PW, margin:"0 auto", border:`2px solid ${selected?C.g1:C.grayL}`, boxShadow:`0 8px 32px ${C.g1}20`, transition:"border-color 0.2s",
+          transform: inlineEdit?`scale(${INLINE_EDIT_ZOOM})`:"none",
+          transformOrigin: inlineEdit?`${inlineEdit.x}px ${inlineEdit.y}px`:undefined,
+          zIndex: inlineEdit?320:"auto" }}>
+          <canvas ref={canvasRef} width={PW} height={PH}
+            onMouseDown={onMouseDown} onMouseMove={onMouseMove} onMouseUp={onMouseUp} onMouseLeave={onMouseUp}
+            onClick={onCanvasClick}
+            onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
+            style={{ display:"block", cursor:selected?"grab":"default", touchAction:"none", userSelect:"none", pointerEvents:inlineEdit?"none":"auto" }} />
+          {inlineEdit&&(()=>{
+            const el=elements.find(el=>el.id===inlineEdit.id);
+            if(!el)return null;
+            const font=FONTS.find(f=>f.id===el.font)||FONTS[0];
+            return (
+              <textarea autoFocus value={el.text}
+                onChange={e=>updateEl(el.id,{text:e.target.value})}
+                onBlur={finishInlineEdit}
+                onKeyDown={e=>{ if(e.key==="Escape")finishInlineEdit(); }}
+                style={{ position:"absolute", left:Math.max(0,inlineEdit.x-inlineEdit.w/2), top:Math.max(0,inlineEdit.y-inlineEdit.h/2), width:Math.min(inlineEdit.w,PW), minHeight:inlineEdit.h, fontSize:inlineEdit.fs, fontFamily:font.family+",sans-serif", fontWeight:font.weight, color:el.color, background:"rgba(0,0,0,0.5)", border:`2px solid ${C.g1}`, borderRadius:4, outline:"none", resize:"none", textAlign:"center", padding:"4px", lineHeight:1.3, boxSizing:"border-box", zIndex:10, caretColor:C.white, overflow:"hidden" }} />
+            );
+          })()}
+          {inlineEdit&&(
+            <button
+              onMouseDown={e=>{e.preventDefault();finishInlineEdit();}}
+              onTouchStart={e=>{e.preventDefault();finishInlineEdit();}}
+              style={{ position:"absolute", left:inlineEdit.x, top:inlineEdit.y+inlineEdit.h/2+12, transform:"translateX(-50%)", zIndex:11, padding:"6px 14px", background:C.g1, border:"none", borderRadius:20, color:C.white, fontSize:12, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", boxShadow:"0 4px 14px rgba(0,0,0,0.3)" }}>
+              ✓ 完了
+            </button>
+          )}
+        </div>
       </div>
+      {inlineEdit&&(
+        <div
+          onMouseDown={e=>{e.preventDefault();finishInlineEdit();}}
+          onTouchStart={e=>{e.preventDefault();finishInlineEdit();}}
+          style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.55)", zIndex:310 }} />
+      )}
 
       <p style={{ textAlign:"center", fontSize:10, color:C.gray, marginTop:5 }}>
         {selected?"ドラッグで移動　ピンチで拡縮　ダブルタップでテキスト編集":"↓ レイヤーで要素を選んでください"}
