@@ -124,6 +124,8 @@ function MainApp() {
   const [generating, setGenerating] = useState(false);
   const [fontsReady, setFontsReady] = useState(false);
   const [activeTab,  setActiveTab]  = useState(null); // 選択中テンプレ
+  const [alignMode,  setAlignMode]  = useState(false); // レイヤー整列モード（selectedとは独立）
+  const [alignIds,   setAlignIds]   = useState([]);    // 整列対象レイヤーのidリスト
 
   const previewRef = useRef(null);
 
@@ -174,6 +176,26 @@ function MainApp() {
     setElements(redoStack[redoStack.length-1]);
     setRedoStack(r=>r.slice(0,-1));
   };
+
+  // PC用Undo/Redo（Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z, Ctrl/Cmd+Y）
+  useEffect(()=>{
+    const onKeyDown = (e)=>{
+      const tag = e.target && e.target.tagName;
+      if(tag==="INPUT"||tag==="TEXTAREA")return;
+      const modKey = e.ctrlKey || e.metaKey;
+      if(!modKey)return;
+      const key = e.key.toLowerCase();
+      if(key==="z"){
+        e.preventDefault();
+        if(e.shiftKey) redo(); else undo();
+      } else if(key==="y"){
+        e.preventDefault();
+        redo();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return ()=>window.removeEventListener("keydown", onKeyDown);
+  },[undo, redo]);
 
   const addText = ()=>{
     pushHistory(elements);
@@ -229,9 +251,46 @@ function MainApp() {
     setElements(e=>e.map(el=>el.id===id?{...el, visible: el.visible===false}:el));
   };
 
+  // ── レイヤー整列（selected/editingとは独立したalignIdsで動作） ──
+  const toggleAlignMode = ()=>{
+    setAlignMode(m=>{
+      if(m) setAlignIds([]); // OFFにする時は選択をクリア
+      return !m;
+    });
+  };
+  const toggleAlignId = (id)=>{
+    setAlignIds(ids=>ids.includes(id) ? ids.filter(i=>i!==id) : [...ids, id]);
+  };
+  const alignLayers = (axis, mode)=>{
+    const targets = elements.filter(el=>alignIds.includes(el.id));
+    if(targets.length<2)return;
+    // 中央揃え：中心座標(el.x/el.y)の最小値と最大値の平均が基準。
+    // 端揃え：中心±半幅/半高で端座標を出し、その最小値/最大値が基準。
+    const half   = el=>axis==="x" ? getElHalfW(el)*(el.scale||1) : getElHalfH(el)*(el.scale||1);
+    const center = el=>axis==="x" ? el.x : el.y;
+
+    let ref;
+    if(mode==="center"){
+      const values = targets.map(center);
+      ref = (Math.min(...values)+Math.max(...values))/2;
+    } else if(mode==="min"){
+      ref = Math.min(...targets.map(el=>center(el)-half(el)));
+    } else {
+      ref = Math.max(...targets.map(el=>center(el)+half(el)));
+    }
+
+    pushHistory(elements);
+    setElements(els=>els.map(el=>{
+      if(!alignIds.includes(el.id))return el;
+      const newCenter = mode==="center" ? ref : mode==="min" ? ref+half(el) : ref-half(el);
+      return {...el,[axis]:newCenter};
+    }));
+  };
+
   const startNew = async (tmplTab) => {
     setActiveTab(tmplTab.id);
     setElements([]); setSelected(null); setEditing(null); setHistory([]); setRedoStack([]);
+    setAlignMode(false); setAlignIds([]);
     const tmpl = await fetchTemplateForTab(tmplTab.id);
     if (tmpl && Array.isArray(tmpl.elements) && tmpl.elements.length > 0) {
       tmpl.elements.forEach(el=>{
@@ -256,7 +315,7 @@ function MainApp() {
     if(name===null||!name.trim())return;
     const updated={...saves,[id]:{...work,name:name.trim()}}; setSaves(updated); localStorage.setItem(SS_KEY,JSON.stringify(updated));
   };
-  const loadWork  = (work)=>{ setActiveTab(work.tab); setElements(work.elements); setSelected(null); setEditing(null); setHistory([]); setRedoStack([]); setScreen("preview"); };
+  const loadWork  = (work)=>{ setActiveTab(work.tab); setElements(work.elements); setSelected(null); setEditing(null); setHistory([]); setRedoStack([]); setAlignMode(false); setAlignIds([]); setScreen("preview"); };
   const deleteWork= (id)=>{ const u={...saves}; delete u[id]; setSaves(u); localStorage.setItem(SS_KEY,JSON.stringify(u)); };
 
   const generate = async()=>{
@@ -266,7 +325,7 @@ function MainApp() {
     drawCanvas(canvas,elements,bgImg,CW_,CH_,null,CW_,CH_);
     setDownloadUrl(canvas.toDataURL("image/png")); setGenerating(false); setScreen("done");
   };
-  const reset = ()=>{ setElements([]); setSelected(null); setEditing(null); setHistory([]); setRedoStack([]); setDownloadUrl(null); setScreen("home"); };
+  const reset = ()=>{ setElements([]); setSelected(null); setEditing(null); setHistory([]); setRedoStack([]); setAlignMode(false); setAlignIds([]); setDownloadUrl(null); setScreen("home"); };
 
   const tabSaves = Object.values(saves).filter(s=>s.tab===activeTab).sort((a,b)=>b.createdAt-a.createdAt);
 
@@ -290,7 +349,7 @@ function MainApp() {
     <div style={{ minHeight:"100vh", background:C.cream, fontFamily:"'Noto Sans JP',sans-serif", color:C.ink, overflowY:"auto" }}>
       <AppHeader screen={screen} onBack={screen==="preview"?()=>setScreen("home"):screen==="done"?()=>setScreen("preview"):null} onUndo={screen==="preview"&&history.length>0?undo:null} />
       {screen==="home"    && <HomeScreen tabs={tabs} saves={saves} onNew={startNew} onLoad={loadWork} onDelete={deleteWork} onRename={renameWork} />}
-      {screen==="preview" && <PreviewScreen tab={tab} elements={elements} setElements={setElements} selected={selected} setSelected={setSelected} editing={editing} setEditing={setEditing} bgImg={bgImg} sampleImg={sampleImg} canvasRef={previewRef} PW={PW} PH={PH} R={R} addText={addText} addImage={addImage} updateEl={updateEl} deleteEl={deleteEl} duplicateEl={duplicateEl} moveLayer={moveLayer} reorderLayers={reorderLayers} toggleVisible={toggleVisible} pushHistory={pushHistory} undo={undo} redo={redo} canUndo={history.length>0} canRedo={redoStack.length>0} onGenerate={generate} generating={generating} onSave={saveWork} tabSaves={tabSaves} onLoad={loadWork} onDelete={deleteWork} onRename={renameWork} />}
+      {screen==="preview" && <PreviewScreen tab={tab} elements={elements} setElements={setElements} selected={selected} setSelected={setSelected} editing={editing} setEditing={setEditing} bgImg={bgImg} sampleImg={sampleImg} canvasRef={previewRef} PW={PW} PH={PH} R={R} addText={addText} addImage={addImage} updateEl={updateEl} deleteEl={deleteEl} duplicateEl={duplicateEl} moveLayer={moveLayer} reorderLayers={reorderLayers} toggleVisible={toggleVisible} pushHistory={pushHistory} undo={undo} redo={redo} canUndo={history.length>0} canRedo={redoStack.length>0} onGenerate={generate} generating={generating} onSave={saveWork} tabSaves={tabSaves} onLoad={loadWork} onDelete={deleteWork} onRename={renameWork} alignMode={alignMode} alignIds={alignIds} toggleAlignMode={toggleAlignMode} toggleAlignId={toggleAlignId} alignLayers={alignLayers} />}
       {screen==="done"    && <DoneScreen downloadUrl={downloadUrl} onReset={reset} onBack={()=>setScreen("preview")} />}
       <style>{`@keyframes spin{to{transform:rotate(360deg)}} @keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}} *{box-sizing:border-box} input::placeholder{color:#C0B8B0} textarea::placeholder{color:#C0B8B0}`}</style>
     </div>
@@ -383,7 +442,7 @@ function HomeScreen({ tabs, saves, onNew, onLoad, onDelete, onRename }) {
   );
 }
 
-function PreviewScreen({ tab, elements, setElements, selected, setSelected, editing, setEditing, bgImg, sampleImg, canvasRef, PW, PH, R, addText, addImage, updateEl, deleteEl, duplicateEl, moveLayer, reorderLayers, toggleVisible, pushHistory, undo, redo, canUndo, canRedo, onGenerate, generating, onSave, tabSaves, onLoad, onDelete, onRename }) {
+function PreviewScreen({ tab, elements, setElements, selected, setSelected, editing, setEditing, bgImg, sampleImg, canvasRef, PW, PH, R, addText, addImage, updateEl, deleteEl, duplicateEl, moveLayer, reorderLayers, toggleVisible, pushHistory, undo, redo, canUndo, canRedo, onGenerate, generating, onSave, tabSaves, onLoad, onDelete, onRename, alignMode, alignIds, toggleAlignMode, toggleAlignId, alignLayers }) {
   const dndSensors = useLayerDndSensors();
   const dragging    = useRef(null);
   const pinchRef    = useRef({ lastDist:null });
@@ -514,7 +573,22 @@ function PreviewScreen({ tab, elements, setElements, selected, setSelected, edit
 
       {elements.length>0&&(
         <div style={{ marginTop:12, background:C.white, borderRadius:12, border:`1px solid ${C.grayLL}`, overflow:"hidden" }}>
-          <p style={{ margin:0, padding:"10px 14px", fontSize:12, fontWeight:700, color:C.inkS, borderBottom:`1px solid ${C.grayLL}`, background:C.cream }}>レイヤー（上が前面）　↑↓・長押しドラッグで並び替え</p>
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8, padding:"10px 14px", borderBottom:`1px solid ${C.grayLL}`, background:C.cream }}>
+            <p style={{ margin:0, fontSize:12, fontWeight:700, color:C.inkS }}>レイヤー（上が前面）　↑↓・長押しドラッグで並び替え</p>
+            <button onClick={toggleAlignMode} style={{ flexShrink:0, padding:"5px 12px", background:alignMode?C.g1:C.white, border:`1px solid ${alignMode?C.g1:C.grayL}`, borderRadius:8, color:alignMode?C.white:C.gray, fontSize:11, fontWeight:700, cursor:"pointer", fontFamily:"'Noto Sans JP',sans-serif" }}>
+              {alignMode?"整列モード ON":"整列モード"}
+            </button>
+          </div>
+          {alignMode&&alignIds.length>=2&&(
+            <div style={{ display:"flex", flexWrap:"wrap", gap:6, padding:"10px 14px", borderBottom:`1px solid ${C.grayLL}`, background:`${C.g1}0A` }}>
+              <button onClick={()=>alignLayers("x","min")}    style={SB()}>⇤ 左揃え</button>
+              <button onClick={()=>alignLayers("x","center")} style={SB()}>⇔ 中央（横）</button>
+              <button onClick={()=>alignLayers("x","max")}    style={SB()}>⇥ 右揃え</button>
+              <button onClick={()=>alignLayers("y","min")}    style={SB()}>⇡ 上揃え</button>
+              <button onClick={()=>alignLayers("y","center")} style={SB()}>⇕ 中央（縦）</button>
+              <button onClick={()=>alignLayers("y","max")}    style={SB()}>⇣ 下揃え</button>
+            </div>
+          )}
           <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={sortedIds} strategy={verticalListSortingStrategy}>
           <div style={{ display:"flex", flexDirection:"column" }}>
@@ -524,6 +598,9 @@ function PreviewScreen({ tab, elements, setElements, selected, setSelected, edit
               const header = (
                   <div onClick={()=>{ if(!isLocked){ setSelected(el.id); if(editing!==el.id)setEditing(null); } }}
                     style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 12px", background:selected===el.id?`${C.g1}10`:isLocked?`#F5F5F5`:C.white, cursor:isLocked?"not-allowed":"pointer" }}>
+                    {alignMode&&!isLocked&&(
+                      <input type="checkbox" checked={alignIds.includes(el.id)} onClick={e=>e.stopPropagation()} onChange={()=>toggleAlignId(el.id)} style={{ flexShrink:0, width:16, height:16, cursor:"pointer" }} />
+                    )}
                     <span style={{ fontSize:16, flexShrink:0, opacity:isVisible?1:0.4 }}>{isLocked?"🔒":el.type==="text"?"✏️":"🖼"}</span>
                     <span style={{ flex:1, fontSize:12, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", color:isLocked?C.gray:selected===el.id?C.g1:C.ink, fontWeight:selected===el.id?700:400, opacity:isVisible?1:0.45 }}>
                       {el.type==="text"?el.text:"画像"}
