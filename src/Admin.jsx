@@ -78,19 +78,31 @@ async function ghGetContent(path) {
   return res.json();
 }
 
-function toBase64(file) {
+// fit 指定時（背景用）：書き出しサイズ fit.w×fit.h を覆える範囲まで縮小（拡大はしない）。
+// PNG の base64 が約3.5MB を超える場合のみ JPEG(0.92) にする（Vercel のリクエスト上限対策）。
+const BG_B64_LIMIT = 3.5*1024*1024;
+function toBase64(file, fit) {
   return new Promise((res,rej)=>{
     const r=new FileReader();
     r.onload=ev=>{
       const img=new Image();
       img.onload=()=>{
-        const MAX=800;
         let w=img.width, h=img.height;
-        if(w>MAX||h>MAX){ if(w>h){h=Math.round(h*MAX/w);w=MAX;}else{w=Math.round(w*MAX/h);h=MAX;} }
+        if(fit){
+          const s=Math.min(1, Math.max(fit.w/w, fit.h/h));
+          w=Math.round(w*s); h=Math.round(h*s);
+        } else {
+          const MAX=800;
+          if(w>MAX||h>MAX){ if(w>h){h=Math.round(h*MAX/w);w=MAX;}else{w=Math.round(w*MAX/h);h=MAX;} }
+        }
         const canvas=document.createElement("canvas");
         canvas.width=w; canvas.height=h;
-        canvas.getContext("2d").drawImage(img,0,0,w,h);
-        res(canvas.toDataURL("image/png").split(",")[1]);
+        const ctx=canvas.getContext("2d");
+        ctx.imageSmoothingQuality="high";
+        ctx.drawImage(img,0,0,w,h);
+        let b64=canvas.toDataURL("image/png").split(",")[1];
+        if(fit&&b64.length>BG_B64_LIMIT) b64=canvas.toDataURL("image/jpeg",0.92).split(",")[1];
+        res(b64);
       };
       img.onerror=rej;
       img.src=ev.target.result;
@@ -354,7 +366,7 @@ function TemplateWizard({ onDone, onCancel, existingCategories }) {
       const bgName = `bg_${tabId}.png`;
       const smName = `sample_${tabId}.png`;
       setMsg("① 背景画像をアップロード中...");
-      await ghPut(`public/${bgName}`, await toBase64(bgFile), `Add bg: ${label}`);
+      await ghPut(`public/${bgName}`, await toBase64(bgFile, { w:size.w, h:size.h }), `Add bg: ${label}`);
       setMsg("② お手本画像をアップロード中...");
       await ghPut(`public/${smName}`, await toBase64(sampleFile), `Add sample: ${label}`);
       setMsg("③ パーツフォルダを初期化中...");
@@ -451,7 +463,7 @@ function TemplateEditor({ tmpl, onDone, onCancel, existingCategories }) {
     setSaving(true); setMsg("保存中...");
     try {
       if (sampleFile) await ghPut(`public/${tmpl.sample.replace(/^\//,"")}`, await toBase64(sampleFile), `Update sample: ${label}`);
-      if (bgFile)     await ghPut(`public/${tmpl.bg.replace(/^\//,"")}`,     await toBase64(bgFile),     `Update bg: ${label}`);
+      if (bgFile)     await ghPut(`public/${tmpl.bg.replace(/^\//,"")}`,     await toBase64(bgFile, { w:tmpl.w||1080, h:tmpl.h||1920 }), `Update bg: ${label}`);
       await ghPut(`public/templates/${tmpl.id}/template.json`, jsonToB64({ elements }), `Update template: ${label}`);
       const updatedTmpl = { ...tmpl, label:label.trim(), category:category.trim()||undefined };
       const current = await loadTemplatesFromGH();

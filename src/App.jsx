@@ -878,6 +878,7 @@ function DoneScreen({ downloadUrl, onReset, onBack }) {
 function drawCanvas(canvas, elements, bgImg, W, H, selectedId, CW, CH, onImgLoad) {
   if(!canvas)return;
   const r=W/CW; const ctx=canvas.getContext("2d",{alpha:true});
+  ctx.imageSmoothingQuality="high";
   ctx.clearRect(0,0,W,H); ctx.save(); ctx.beginPath(); ctx.rect(0,0,W,H); ctx.clip();
   if(bgImg){ ctx.drawImage(bgImg,0,0,W,H); }
   else { const g=ctx.createLinearGradient(0,0,W,0); g.addColorStop(0,"rgb(235,97,0)"); g.addColorStop(1,"rgb(241,141,0)"); ctx.fillStyle=g; ctx.fillRect(0,0,W,H); }
