@@ -127,6 +127,7 @@ function MainApp() {
   const [activeTab,  setActiveTab]  = useState(null); // 選択中テンプレ
   const [alignMode,  setAlignMode]  = useState(false); // レイヤー整列モード（selectedとは独立）
   const [alignIds,   setAlignIds]   = useState([]);    // 整列対象レイヤーのidリスト
+  const [imgTick,    setImgTick]    = useState(0);     // 画像レイヤー読み込み完了時の再描画用
 
   const previewRef = useRef(null);
 
@@ -158,8 +159,8 @@ function MainApp() {
   useEffect(()=>{
     if(screen!=="preview"||!previewRef.current)return;
     previewRef.current.width=PW; previewRef.current.height=PH;
-    drawCanvas(previewRef.current,elements,bgImg,PW,PH,selected,CW_,CH_);
-  },[screen,elements,bgImg,fontsReady,PW,PH,selected,CW_,CH_]);
+    drawCanvas(previewRef.current,elements,bgImg,PW,PH,selected,CW_,CH_,()=>setImgTick(t=>t+1));
+  },[screen,elements,bgImg,fontsReady,PW,PH,selected,CW_,CH_,imgTick]);
 
   const pushHistory = useCallback((els)=>{
     setHistory(h=>[...h.slice(-49),JSON.parse(JSON.stringify(els))]);
@@ -211,6 +212,7 @@ function MainApp() {
     reader.onload=ev=>{
       const img=new Image();
       img.onload=()=>{
+        imgCache[ev.target.result]=img;
         pushHistory(elements);
         const el=defaultImage(ev.target.result,img.width,img.height,0);
         setElements(e=>{ const updated=e.map(el=>({...el,zIndex:el.zIndex+1})); return [el,...updated]; });
@@ -321,6 +323,13 @@ function MainApp() {
 
   const generate = async()=>{
     setGenerating(true); await new Promise(r=>setTimeout(r,80));
+    // 読み込み中の画像レイヤーを待つ（最大10秒。失敗・タイムアウト時はその画像を飛ばして書き出す）
+    const imgLoads=elements.filter(el=>el.type==="image"&&el.visible!==false&&el.src).map(el=>{
+      let img=imgCache[el.src];
+      if(!img){ img=new Image(); img.crossOrigin="anonymous"; img.src=el.src; imgCache[el.src]=img; }
+      return img.complete ? null : new Promise(res=>{ img.addEventListener("load",res,{once:true}); img.addEventListener("error",res,{once:true}); });
+    });
+    await Promise.race([Promise.all(imgLoads), new Promise(r=>setTimeout(r,10000))]);
     const canvas=document.createElement("canvas"); canvas.width=CW_; canvas.height=CH_;
     const ctx2=canvas.getContext("2d",{alpha:true}); ctx2.clearRect(0,0,CW_,CH_);
     drawCanvas(canvas,elements,bgImg,CW_,CH_,null,CW_,CH_);
@@ -866,13 +875,13 @@ function DoneScreen({ downloadUrl, onReset, onBack }) {
   );
 }
 
-function drawCanvas(canvas, elements, bgImg, W, H, selectedId, CW, CH) {
+function drawCanvas(canvas, elements, bgImg, W, H, selectedId, CW, CH, onImgLoad) {
   if(!canvas)return;
   const r=W/CW; const ctx=canvas.getContext("2d",{alpha:true});
   ctx.clearRect(0,0,W,H); ctx.save(); ctx.beginPath(); ctx.rect(0,0,W,H); ctx.clip();
   if(bgImg){ ctx.drawImage(bgImg,0,0,W,H); }
   else { const g=ctx.createLinearGradient(0,0,W,0); g.addColorStop(0,"rgb(235,97,0)"); g.addColorStop(1,"rgb(241,141,0)"); ctx.fillStyle=g; ctx.fillRect(0,0,W,H); }
-  [...elements].sort((a,b)=>a.zIndex-b.zIndex).forEach(el=>{ if(el.visible===false)return; if(el.type==="image") drawImageEl(ctx,el,r,selectedId===el.id); else drawTextEl(ctx,el,r,selectedId===el.id); });
+  [...elements].sort((a,b)=>a.zIndex-b.zIndex).forEach(el=>{ if(el.visible===false)return; if(el.type==="image") drawImageEl(ctx,el,r,selectedId===el.id,onImgLoad); else drawTextEl(ctx,el,r,selectedId===el.id); });
   ctx.restore();
 }
 
@@ -906,11 +915,11 @@ function drawTextEl(ctx, el, r, isSelected) {
   ctx.restore();
 }
 
-function drawImageEl(ctx, el, r, isSelected) {
+function drawImageEl(ctx, el, r, isSelected, onImgLoad) {
   if(!el.src)return;
   let img=imgCache[el.src];
-  if(!img){ img=new Image(); img.crossOrigin="anonymous"; img.src=el.src; if(img.complete)imgCache[el.src]=img; }
-  if(!img.complete)return;
+  if(!img){ img=new Image(); img.crossOrigin="anonymous"; img.onload=()=>onImgLoad?.(); img.src=el.src; imgCache[el.src]=img; }
+  if(!img.complete||!img.naturalWidth)return;
   const w=el.naturalW*el.scale*r, h=el.naturalH*el.scale*r;
   ctx.save(); ctx.translate(el.x*r,el.y*r);
   if(el.rotate) ctx.rotate(el.rotate*Math.PI/180);
