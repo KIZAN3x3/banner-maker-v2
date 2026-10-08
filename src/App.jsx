@@ -587,7 +587,7 @@ function PreviewScreen({ tab, elements, setElements, selected, setSelected, edit
 
       <div style={{ width:"100%" }}
         onTouchStart={onStageTouchStart} onTouchMove={onStageTouchMove} onTouchEnd={onStageTouchEnd}>
-        <div style={{ position:"relative", overflow:inlineEdit?"visible":"hidden", width:PW, margin:"0 auto", border:`2px solid ${selected?C.g1:C.grayL}`, boxShadow:`0 8px 32px ${C.g1}20`, transition:"border-color 0.2s",
+        <div style={{ position:"relative", boxSizing:"content-box", overflow:inlineEdit?"visible":"hidden", width:PW, margin:"0 auto", border:`2px solid ${selected?C.g1:C.grayL}`, boxShadow:`0 8px 32px ${C.g1}20`, transition:"border-color 0.2s",
           transform: inlineEdit?`scale(${INLINE_EDIT_ZOOM})`:"none",
           transformOrigin: inlineEdit?`${inlineEdit.x}px ${inlineEdit.y}px`:undefined,
           zIndex: inlineEdit?320:"auto" }}>
