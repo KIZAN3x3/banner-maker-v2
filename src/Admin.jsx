@@ -125,13 +125,13 @@ async function triggerDeploy() {
   try { await fetch(VERCEL_DEPLOY_HOOK, { method:"POST" }); } catch {}
 }
 
-function drawCanvas(canvas, elements, bgImg, W, H, selectedId, CW, CH) {
+function drawCanvas(canvas, elements, bgImg, W, H, selectedId, CW, CH, onImgLoad) {
   if(!canvas)return;
   const r=W/CW; const ctx=canvas.getContext("2d");
   ctx.clearRect(0,0,W,H); ctx.save(); ctx.beginPath(); ctx.rect(0,0,W,H); ctx.clip();
   if(bgImg){ ctx.drawImage(bgImg,0,0,W,H); }
   else { const g=ctx.createLinearGradient(0,0,W,0); g.addColorStop(0,"rgb(235,97,0)"); g.addColorStop(1,"rgb(241,141,0)"); ctx.fillStyle=g; ctx.fillRect(0,0,W,H); }
-  [...elements].sort((a,b)=>a.zIndex-b.zIndex).forEach(el=>{ if(el.visible===false)return; if(el.type==="image") drawImageEl(ctx,el,r,selectedId===el.id); else drawTextEl(ctx,el,r,selectedId===el.id); });
+  [...elements].sort((a,b)=>a.zIndex-b.zIndex).forEach(el=>{ if(el.visible===false)return; if(el.type==="image") drawImageEl(ctx,el,r,selectedId===el.id,onImgLoad); else drawTextEl(ctx,el,r,selectedId===el.id); });
   ctx.restore();
 }
 
@@ -162,11 +162,11 @@ function drawTextEl(ctx, el, r, isSelected) {
   ctx.restore();
 }
 
-function drawImageEl(ctx, el, r, isSelected) {
+function drawImageEl(ctx, el, r, isSelected, onImgLoad) {
   if(!el.src)return;
   let img=imgCache[el.src];
-  if(!img){ img=new Image(); img.crossOrigin="anonymous"; img.src=el.src; if(img.complete)imgCache[el.src]=img; }
-  if(!img.complete)return;
+  if(!img){ img=new Image(); img.crossOrigin="anonymous"; img.onload=()=>onImgLoad?.(); img.src=el.src; imgCache[el.src]=img; }
+  if(!img.complete||!img.naturalWidth)return;
   const w=el.naturalW*el.scale*r, h=el.naturalH*el.scale*r;
   ctx.save(); ctx.translate(el.x*r,el.y*r);
   if(el.rotate) ctx.rotate(el.rotate*Math.PI/180);
@@ -515,6 +515,7 @@ function LayerEditor({ bgDataUrl, bgPath, sampleUrl, canvasW, canvasH, elements,
   const [editing,    setEditing]    = useState(null);
   const [bgImg,      setBgImg]      = useState(null);
   const [inlineEdit, setInlineEdit] = useState(null);
+  const [imgTick,    setImgTick]    = useState(0);
   const dndSensors = useLayerDndSensors();
 
   const canvasRef   = useRef(null);
@@ -542,8 +543,8 @@ function LayerEditor({ bgDataUrl, bgPath, sampleUrl, canvasW, canvasH, elements,
   useEffect(()=>{
     if(!canvasRef.current)return;
     canvasRef.current.width=PW; canvasRef.current.height=PH;
-    drawCanvas(canvasRef.current, elements, bgImg, PW, PH, selected, CW, CH);
-  },[elements, bgImg, selected, PW, PH, CW, CH]);
+    drawCanvas(canvasRef.current, elements, bgImg, PW, PH, selected, CW, CH, ()=>setImgTick(t=>t+1));
+  },[elements, bgImg, selected, PW, PH, CW, CH, imgTick]);
 
   const getXY = (cx,cy)=>{
     if(!canvasRef.current)return{x:0,y:0};
