@@ -536,7 +536,7 @@ function LayerEditor({ bgDataUrl, bgPath, sampleUrl, canvasW, canvasH, elements,
     const bg = new Image();
     bg.crossOrigin = "anonymous";
     bg.onload = ()=>setBgImg(bg);
-    bg.src = src+(bgPath?`?t=${Date.now()}`:"");
+    bg.src = /^https?:/.test(src) ? `${src}?t=${Date.now()}` : src;
   },[bgDataUrl, bgPath]);
 
   useEffect(()=>{
