@@ -1,4 +1,4 @@
-const GITHUB_TOKEN  = process.env.VITE_GITHUB_TOKEN;
+const GITHUB_TOKEN  = process.env.GITHUB_TOKEN;
 const GITHUB_OWNER  = "KIZAN3x3";
 const GITHUB_REPO   = "banner-maker-v2";
 const GITHUB_BRANCH = "main";
