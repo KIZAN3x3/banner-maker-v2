@@ -585,7 +585,8 @@ function LayerEditor({ bgDataUrl, bgPath, sampleUrl, canvasW, canvasH, elements,
   const onMouseMove = (e)=>{
     if(!dragging.current)return;
     const{x,y}=getXY(e.clientX,e.clientY);
-    setElements(els=>els.map(el=>el.id===dragging.current.id?{...el,x:dragging.current.origX+(x-dragging.current.startX),y:dragging.current.origY+(y-dragging.current.startY)}:el));
+    const d=dragging.current;
+    setElements(els=>els.map(el=>el.id===d.id?{...el,x:d.origX+(x-d.startX),y:d.origY+(y-d.startY)}:el));
   };
   const onMouseUp = ()=>{ dragging.current=null; };
 
