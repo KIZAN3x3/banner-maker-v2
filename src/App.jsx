@@ -61,6 +61,20 @@ const defaultImage = (src, w, h, zIndex=0) => ({
 
 const imgCache = {};
 
+// 読み込んだデータの正規化：落ちる原因（null・オブジェクトでない・id なし）だけ除外し、
+// text が文字列でない要素は描画処理と同じ扱いになるよう文字列に補正する
+const isValidItem = (x) => x!==null && typeof x==="object" && !Array.isArray(x) && !!x.id;
+const fixElement  = (el) => (el.type!=="image" && typeof el.text!=="string") ? { ...el, text: el.text==null ? "" : String(el.text) } : el;
+const normalizeElements = (els) => Array.isArray(els) ? els.filter(isValidItem).map(fixElement) : [];
+function normalizeSaves(saves) {
+  if (saves===null || typeof saves!=="object" || Array.isArray(saves)) return {};
+  const out = {};
+  for (const [key, work] of Object.entries(saves)) {
+    if (isValidItem(work)) out[key] = { ...work, elements: normalizeElements(work.elements) };
+  }
+  return out;
+}
+
 // 取り込む写真を、書き出しサイズ CW×CH を覆える範囲まで縮小する（拡大はしない）。
 // 透過のある画像は PNG のまま、それ以外は JPEG(0.9)。縮小不要で小さいファイルは元のまま使う
 const PHOTO_KEEP_ORIGINAL_MAX = 1.5*1024*1024;
@@ -98,7 +112,8 @@ async function fetchTabs() {
     const res = await fetch(`${RAW_BASE}/tabs.json?t=${Date.now()}`);
     if (!res.ok) return [];
     const tabs = await res.json();
-    return tabs.map(t => ({ ...t, bg: RAW_BASE + t.bg, sample: RAW_BASE + t.sample }));
+    if (!Array.isArray(tabs)) return [];
+    return tabs.filter(isValidItem).map(t => ({ ...t, bg: RAW_BASE + t.bg, sample: RAW_BASE + t.sample }));
   } catch { return []; }
 }
 
@@ -150,7 +165,7 @@ function MainApp() {
   const [editing,    setEditing]    = useState(null);
   const [history,    setHistory]    = useState([]);
   const [redoStack,  setRedoStack]  = useState([]);
-  const [saves,      setSaves]      = useState(()=>{ try{return JSON.parse(localStorage.getItem(SS_KEY)||"{}");}catch{return {};} });
+  const [saves,      setSaves]      = useState(()=>{ try{return normalizeSaves(JSON.parse(localStorage.getItem(SS_KEY)||"{}"));}catch{return {};} });
   const [bgImg,      setBgImg]      = useState(null);
   const [sampleImg,  setSampleImg]  = useState(null);
   const [downloadUrl,setDownloadUrl]= useState(null);
@@ -336,10 +351,11 @@ function MainApp() {
     setAlignMode(false); setAlignIds([]);
     const tmpl = await fetchTemplateForTab(tmplTab.id);
     if (tmpl && Array.isArray(tmpl.elements) && tmpl.elements.length > 0) {
-      tmpl.elements.forEach(el=>{
+      const els = normalizeElements(tmpl.elements);
+      els.forEach(el=>{
         if(el.type==="image"&&el.src){ const img=new Image(); img.crossOrigin="anonymous"; img.onload=()=>{ imgCache[el.src]=img; }; img.src=el.src; }
       });
-      setElements(tmpl.elements);
+      setElements(els);
     }
     setScreen("preview");
   };
@@ -361,22 +377,33 @@ function MainApp() {
     const updated={...saves,[id]:{...work,name:name.trim()}};
     if(writeSaves(updated)) setSaves(updated);
   };
-  const loadWork  = (work)=>{ setActiveTab(work.tab); setElements(work.elements); setSelected(null); setEditing(null); setHistory([]); setRedoStack([]); setAlignMode(false); setAlignIds([]); setScreen("preview"); };
+  const loadWork  = (work)=>{ setActiveTab(work.tab); setElements(normalizeElements(work.elements)); setSelected(null); setEditing(null); setHistory([]); setRedoStack([]); setAlignMode(false); setAlignIds([]); setScreen("preview"); };
   const deleteWork= (id)=>{ const u={...saves}; delete u[id]; if(writeSaves(u)) setSaves(u); };
 
   const generate = async()=>{
-    setGenerating(true); await new Promise(r=>setTimeout(r,80));
-    // 読み込み中の画像レイヤーを待つ（最大10秒。失敗・タイムアウト時はその画像を飛ばして書き出す）
-    const imgLoads=elements.filter(el=>el.type==="image"&&el.visible!==false&&el.src).map(el=>{
-      let img=imgCache[el.src];
-      if(!img){ img=new Image(); img.crossOrigin="anonymous"; img.src=el.src; imgCache[el.src]=img; }
-      return img.complete ? null : new Promise(res=>{ img.addEventListener("load",res,{once:true}); img.addEventListener("error",res,{once:true}); });
-    });
-    await Promise.race([Promise.all(imgLoads), new Promise(r=>setTimeout(r,10000))]);
-    const canvas=document.createElement("canvas"); canvas.width=CW_; canvas.height=CH_;
-    const ctx2=canvas.getContext("2d",{alpha:true}); ctx2.clearRect(0,0,CW_,CH_);
-    drawCanvas(canvas,elements,bgImg,CW_,CH_,null,CW_,CH_);
-    setDownloadUrl(canvas.toDataURL("image/png")); setGenerating(false); setScreen("done");
+    if(generating)return;
+    setGenerating(true);
+    try {
+      await new Promise(r=>setTimeout(r,80));
+      // 読み込み中の画像レイヤーを待つ（最大10秒。失敗・タイムアウト時はその画像を飛ばして書き出す）
+      const imgLoads=elements.filter(el=>el.type==="image"&&el.visible!==false&&el.src).map(el=>{
+        let img=imgCache[el.src];
+        if(!img){ img=new Image(); img.crossOrigin="anonymous"; img.src=el.src; imgCache[el.src]=img; }
+        return img.complete ? null : new Promise(res=>{ img.addEventListener("load",res,{once:true}); img.addEventListener("error",res,{once:true}); });
+      });
+      await Promise.race([Promise.all(imgLoads), new Promise(r=>setTimeout(r,10000))]);
+      const canvas=document.createElement("canvas"); canvas.width=CW_; canvas.height=CH_;
+      const ctx2=canvas.getContext("2d",{alpha:true}); ctx2.clearRect(0,0,CW_,CH_);
+      drawCanvas(canvas,elements,bgImg,CW_,CH_,null,CW_,CH_);
+      const url=canvas.toDataURL("image/png");
+      if(!url||url.length<100) throw new Error("toDataURL returned empty"); // iOS のメモリ不足時は "data:," が返る
+      setDownloadUrl(url); setScreen("done");
+    } catch(e) {
+      console.error("[BannerMaker] generate failed", e);
+      alert("画像の生成に失敗しました。もう一度お試しください。\n改善しない場合は、画像レイヤーを減らすか、アプリを再読み込みしてください。");
+    } finally {
+      setGenerating(false);
+    }
   };
   const reset = ()=>{ setElements([]); setSelected(null); setEditing(null); setHistory([]); setRedoStack([]); setAlignMode(false); setAlignIds([]); setDownloadUrl(null); setScreen("home"); };
 

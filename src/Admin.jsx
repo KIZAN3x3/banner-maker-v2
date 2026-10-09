@@ -112,6 +112,12 @@ async function ghGetContent(path) {
   return res.json();
 }
 
+// 読み込んだデータの正規化：落ちる原因（null・オブジェクトでない・id なし）だけ除外し、
+// text が文字列でない要素は描画処理と同じ扱いになるよう文字列に補正する
+const isValidItem = (x) => x!==null && typeof x==="object" && !Array.isArray(x) && !!x.id;
+const fixElement  = (el) => (el.type!=="image" && typeof el.text!=="string") ? { ...el, text: el.text==null ? "" : String(el.text) } : el;
+const normalizeElements = (els) => Array.isArray(els) ? els.filter(isValidItem).map(fixElement) : [];
+
 function decodeB64Json(content) {
   const decoded = decodeURIComponent(
     atob(content.replace(/\n/g,""))
@@ -164,7 +170,7 @@ async function loadTemplatesFromGH() {
   if (!data.content) throw new Error("tabs.json を読み込めませんでした");
   const parsed = decodeB64Json(data.content);
   if (!Array.isArray(parsed)) throw new Error("tabs.json の形式が不正です");
-  return parsed;
+  return parsed.filter(isValidItem);
 }
 
 async function loadPartsForTab(tabId) {
@@ -519,7 +525,7 @@ function TemplateEditor({ tmpl, onDone, onCancel, existingCategories }) {
           if (!data.content) throw new Error("template.json を読み込めませんでした（ファイルが1MBを超えている可能性があります）");
           const parsed = decodeB64Json(data.content);
           if (!Array.isArray(parsed?.elements)) throw new Error("template.json の形式が不正です");
-          setElements(parsed.elements);
+          setElements(normalizeElements(parsed.elements));
         }
         setLoading(false);
       } catch(e) { setLoadErr(e.message); }
