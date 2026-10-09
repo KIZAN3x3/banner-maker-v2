@@ -4,10 +4,8 @@ import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-ki
 import SortableLayerRow from "./SortableLayerRow";
 import { useLayerDndSensors } from "./useLayerDndSensors";
 
-const ADMIN_PASSWORD     = "123123";
 const GITHUB_OWNER       = "KIZAN3x3";
 const GITHUB_REPO        = "banner-maker-v2";
-const VERCEL_DEPLOY_HOOK = "https://api.vercel.com/v1/integrations/deploy/prj_J4dUU6AAwHjkqY6EDQIdwzxRKPsP/tjrYEm5kD5";
 const RAW_BASE           = `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/main/public`;
 
 const C = {
@@ -40,8 +38,40 @@ const SNS_SIZES = [
 const uid = () => Math.random().toString(36).slice(2,9);
 const imgCache = {};
 
-async function ghPut(path, base64, message) {
+// ── 管理者トークン（/api/login で取得し、API 呼び出しに付ける） ──
+const TOKEN_KEY  = "bm_admin_token";
+const AUTH_EVENT = "bm-admin-auth-required";
+
+function getToken() {
+  try { return sessionStorage.getItem(TOKEN_KEY); } catch { return null; }
+}
+function setToken(token) {
+  try { token ? sessionStorage.setItem(TOKEN_KEY, token) : sessionStorage.removeItem(TOKEN_KEY); } catch {}
+}
+// 有効期限の確認は表示の切り替え用。本当の検証はサーバー側で行う
+function isTokenValid(token) {
+  if (!token) return false;
+  try {
+    const payload = JSON.parse(atob(token.split(".")[0].replace(/-/g,"+").replace(/_/g,"/")));
+    return typeof payload.exp === "number" && payload.exp > Date.now();
+  } catch { return false; }
+}
+
+async function apiFetch(path, init={}) {
   const res = await fetch(`/api/github?path=${encodeURIComponent(path)}`, {
+    ...init,
+    headers: { ...(init.headers||{}), Authorization: `Bearer ${getToken()||""}` },
+  });
+  if (res.status===401) {
+    setToken(null);
+    window.dispatchEvent(new Event(AUTH_EVENT));
+    throw new Error("ログインの有効期限が切れました。再ログインしてから、もう一度操作してください");
+  }
+  return res;
+}
+
+async function ghPut(path, base64, message) {
+  const res = await apiFetch(path, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ content: base64, message }),
@@ -53,7 +83,7 @@ async function ghPut(path, base64, message) {
 }
 
 async function ghDelete(path, message) {
-  const res = await fetch(`/api/github?path=${encodeURIComponent(path)}`, {
+  const res = await apiFetch(path, {
     method: "DELETE",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ message }),
@@ -65,17 +95,29 @@ async function ghDelete(path, message) {
 }
 
 async function ghGetDir(path) {
-  const res = await fetch(`/api/github?path=${encodeURIComponent(path)}`);
+  const res = await apiFetch(path);
   if (!res.ok) return [];
   const data = await res.json();
   if (!data.isDir) return [];
   return data.items || [];
 }
 
+// 読み込みに失敗したら例外にする（空データとして扱って上書き保存しないため）
 async function ghGetContent(path) {
-  const res = await fetch(`/api/github?path=${encodeURIComponent(path)}`);
-  if (!res.ok) return null;
+  const res = await apiFetch(path);
+  if (!res.ok) {
+    const err = await res.json().catch(()=>({}));
+    throw new Error(`読み込み失敗 [${res.status}]: ${err.error||""}`);
+  }
   return res.json();
+}
+
+function decodeB64Json(content) {
+  const decoded = decodeURIComponent(
+    atob(content.replace(/\n/g,""))
+      .split("").map(c=>"%" + c.charCodeAt(0).toString(16).padStart(2,"0")).join("")
+  );
+  return JSON.parse(decoded);
 }
 
 // fit 指定時（背景用）：書き出しサイズ fit.w×fit.h を覆える範囲まで縮小（拡大はしない）。
@@ -118,23 +160,16 @@ function jsonToB64(obj) {
 
 async function loadTemplatesFromGH() {
   const data = await ghGetContent("public/tabs.json");
-  if (!data?.content) return [];
-  const decoded = decodeURIComponent(
-    atob(data.content.replace(/\n/g,""))
-      .split("").map(c=>"%" + c.charCodeAt(0).toString(16).padStart(2,"0")).join("")
-  );
-  const parsed = JSON.parse(decoded);
-  if (!Array.isArray(parsed)) return [];
+  if (data.sha===null) return [];  // ファイルが存在しない（初回）
+  if (!data.content) throw new Error("tabs.json を読み込めませんでした");
+  const parsed = decodeB64Json(data.content);
+  if (!Array.isArray(parsed)) throw new Error("tabs.json の形式が不正です");
   return parsed;
 }
 
 async function loadPartsForTab(tabId) {
   const items = await ghGetDir(`public/stamps/${tabId}`);
   return items.filter(f=>f.type==="file" && f.name!=="index.json").map(f=>f.name);
-}
-
-async function triggerDeploy() {
-  try { await fetch(VERCEL_DEPLOY_HOOK, { method:"POST" }); } catch {}
 }
 
 function drawCanvas(canvas, elements, bgImg, W, H, selectedId, CW, CH, onImgLoad) {
@@ -187,28 +222,56 @@ function drawImageEl(ctx, el, r, isSelected, onImgLoad) {
   ctx.restore();
 }
 
-export default function Admin() {
-  const [authed, setAuthed] = useState(()=>sessionStorage.getItem("bm_admin_auth")==="1");
-  const [pw,     setPw]     = useState("");
-  const [err,    setErr]    = useState("");
+function LoginForm({ title, note, onSuccess }) {
+  const [pw,      setPw]      = useState("");
+  const [err,     setErr]     = useState("");
+  const [sending, setSending] = useState(false);
 
-  const login = () => {
-    if (pw===ADMIN_PASSWORD) { sessionStorage.setItem("bm_admin_auth","1"); setAuthed(true); }
-    else { setErr("パスワードが違います"); setTimeout(()=>setErr(""),1500); }
+  const login = async () => {
+    if (sending || !pw) return;
+    setSending(true); setErr("");
+    try {
+      const res = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: pw }),
+      });
+      const data = await res.json().catch(()=>({}));
+      if (res.ok && data.token) { setToken(data.token); setPw(""); onSuccess(); }
+      else setErr(res.status===401 ? "パスワードが違います" : `ログインできません [${res.status}]`);
+    } catch { setErr("通信エラーが発生しました"); }
+    setSending(false);
   };
+
+  return (
+    <div style={{ background:C.ink, borderRadius:20, padding:"40px 32px", width:300, boxShadow:"0 20px 60px rgba(0,0,0,0.5)" }}>
+      <div style={{ textAlign:"center", marginBottom:28 }}>
+        <div style={{ width:56, height:56, borderRadius:14, background:`linear-gradient(135deg,${C.g1},${C.g2})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, fontWeight:900, color:C.white, margin:"0 auto 14px" }}>管理</div>
+        <p style={{ margin:0, fontSize:18, fontWeight:700, color:C.white }}>{title}</p>
+        {note&&<p style={{ margin:"8px 0 0", fontSize:12, color:C.grayL }}>{note}</p>}
+      </div>
+      <input type="password" value={pw} onChange={e=>setPw(e.target.value)} onKeyDown={e=>e.key==="Enter"&&login()} placeholder="管理者パスワード" autoFocus
+        style={{ width:"100%", padding:"13px 16px", background:"#2A1E12", border:`1.5px solid ${err?C.red:C.grayL}`, borderRadius:10, color:C.white, fontSize:16, fontFamily:"'Noto Sans JP',sans-serif", outline:"none", boxSizing:"border-box" }} />
+      {err&&<p style={{ color:C.red, fontSize:12, margin:"6px 0 0", textAlign:"center" }}>{err}</p>}
+      <button onClick={login} disabled={sending} style={{ width:"100%", marginTop:14, padding:"14px", background:`linear-gradient(135deg,${C.g1},${C.g2})`, border:"none", borderRadius:12, color:C.white, fontSize:15, fontWeight:700, fontFamily:"'Noto Sans JP',sans-serif", cursor:sending?"not-allowed":"pointer", opacity:sending?0.6:1 }}>{sending?"確認中...":"ログイン"}</button>
+    </div>
+  );
+}
+
+export default function Admin() {
+  const [authed,       setAuthed]       = useState(()=>isTokenValid(getToken()));
+  const [needRelogin,  setNeedRelogin]  = useState(false);
+
+  // API が 401 を返したら、編集中の画面を残したまま再ログインを表示する
+  useEffect(()=>{
+    const onAuthRequired = ()=>setNeedRelogin(true);
+    window.addEventListener(AUTH_EVENT, onAuthRequired);
+    return ()=>window.removeEventListener(AUTH_EVENT, onAuthRequired);
+  },[]);
 
   if (!authed) return (
     <div style={{ minHeight:"100vh", background:C.dark, display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"'Noto Sans JP',sans-serif" }}>
-      <div style={{ background:C.ink, borderRadius:20, padding:"40px 32px", width:300, boxShadow:"0 20px 60px rgba(0,0,0,0.5)" }}>
-        <div style={{ textAlign:"center", marginBottom:28 }}>
-          <div style={{ width:56, height:56, borderRadius:14, background:`linear-gradient(135deg,${C.g1},${C.g2})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, fontWeight:900, color:C.white, margin:"0 auto 14px" }}>管理</div>
-          <p style={{ margin:0, fontSize:18, fontWeight:700, color:C.white }}>管理者ページ</p>
-        </div>
-        <input type="password" value={pw} onChange={e=>setPw(e.target.value)} onKeyDown={e=>e.key==="Enter"&&login()} placeholder="管理者パスワード"
-          style={{ width:"100%", padding:"13px 16px", background:"#2A1E12", border:`1.5px solid ${err?C.red:C.grayL}`, borderRadius:10, color:C.white, fontSize:16, fontFamily:"'Noto Sans JP',sans-serif", outline:"none", boxSizing:"border-box" }} />
-        {err&&<p style={{ color:C.red, fontSize:12, margin:"6px 0 0", textAlign:"center" }}>{err}</p>}
-        <button onClick={login} style={{ width:"100%", marginTop:14, padding:"14px", background:`linear-gradient(135deg,${C.g1},${C.g2})`, border:"none", borderRadius:12, color:C.white, fontSize:15, fontWeight:700, fontFamily:"'Noto Sans JP',sans-serif", cursor:"pointer" }}>ログイン</button>
-      </div>
+      <LoginForm title="管理者ページ" onSuccess={()=>setAuthed(true)} />
       <style>{`input::placeholder{color:#5A4A38} *{box-sizing:border-box}`}</style>
     </div>
   );
@@ -221,6 +284,11 @@ export default function Admin() {
         <a href="/" style={{ fontSize:12, color:C.gray, textDecoration:"none" }}>← アプリへ</a>
       </header>
       <TemplateAdmin />
+      {needRelogin&&(
+        <div style={{ position:"fixed", inset:0, background:"rgba(15,10,5,0.75)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000 }}>
+          <LoginForm title="再ログイン" note="編集中の内容はそのまま残っています。ログイン後、もう一度保存してください" onSuccess={()=>setNeedRelogin(false)} />
+        </div>
+      )}
       <style>{`*{box-sizing:border-box} @keyframes spin{to{transform:rotate(360deg)}} @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}} input::placeholder{color:#C0B8B0} textarea::placeholder{color:#C0B8B0}`}</style>
     </div>
   );
@@ -252,10 +320,10 @@ function TemplateAdmin() {
   };
 
   const saveOrder = async () => {
+    if (loadErr) { setSaveMsg("一覧の読み込みに失敗しているため保存できません。ページを再読み込みしてください"); return; }
     setReordering(true); setSaveMsg("保存中...");
     try {
       await ghPut("public/tabs.json", jsonToB64(templates), "Reorder templates");
-      await triggerDeploy();
       setSaveMsg("✅ 順番を保存しました！");
     } catch(e) { setSaveMsg("エラー: "+e.message); }
     setReordering(false);
@@ -276,7 +344,6 @@ function TemplateAdmin() {
         await ghDelete(`public/stamps/${tmpl.id}/index.json`, `Delete parts index`);
       } catch {}
       try { await ghDelete(`public/templates/${tmpl.id}/template.json`, `Delete template`); } catch {}
-      await triggerDeploy();
       setTemplates(updated);
     } catch(e) { alert("削除エラー: "+e.message); }
   };
@@ -377,7 +444,6 @@ function TemplateWizard({ onDone, onCancel, existingCategories }) {
       const currentTabs = await loadTemplatesFromGH();
       const newTmpl = { id:tabId, label:label.trim(), category:category.trim()||undefined, bg:`/${bgName}`, sample:`/${smName}`, w:size.w, h:size.h };
       await ghPut("public/tabs.json", jsonToB64([...currentTabs, newTmpl]), `Add template: ${label}`);
-      await triggerDeploy();
       setMsg("✅ 登録しました！");
       setTimeout(()=>onDone(newTmpl), 800);
     } catch(e) { setMsg("エラー: "+e.message); setSaving(false); }
@@ -440,20 +506,23 @@ function TemplateEditor({ tmpl, onDone, onCancel, existingCategories }) {
   const [bgPrev,    setBgPrev]    = useState(null);
   const [elements,  setElements]  = useState([]);
   const [loading,   setLoading]   = useState(true);
+  const [loadErr,   setLoadErr]   = useState("");
   const [saving,    setSaving]    = useState(false);
   const [msg,       setMsg]       = useState("");
 
+  // 読み込みに失敗したら編集画面を開かない（空のレイヤーで上書き保存しないため）
   useEffect(()=>{
     (async()=>{
       try {
         const data = await ghGetContent(`public/templates/${tmpl.id}/template.json`);
-        if (data?.content) {
-          const decoded = decodeURIComponent(atob(data.content.replace(/\n/g,"")).split("").map(c=>"%" + c.charCodeAt(0).toString(16).padStart(2,"0")).join(""));
-          const parsed = JSON.parse(decoded);
-          if (parsed?.elements) setElements(parsed.elements);
+        if (data.sha!==null) {
+          if (!data.content) throw new Error("template.json を読み込めませんでした（ファイルが1MBを超えている可能性があります）");
+          const parsed = decodeB64Json(data.content);
+          if (!Array.isArray(parsed?.elements)) throw new Error("template.json の形式が不正です");
+          setElements(parsed.elements);
         }
-      } catch {}
-      setLoading(false);
+        setLoading(false);
+      } catch(e) { setLoadErr(e.message); }
     })();
   },[tmpl.id]);
 
@@ -468,11 +537,19 @@ function TemplateEditor({ tmpl, onDone, onCancel, existingCategories }) {
       const updatedTmpl = { ...tmpl, label:label.trim(), category:category.trim()||undefined };
       const current = await loadTemplatesFromGH();
       await ghPut("public/tabs.json", jsonToB64(current.map(t=>t.id===tmpl.id?updatedTmpl:t)), `Update template: ${label}`);
-      await triggerDeploy();
       setMsg("✅ 更新しました！");
       setTimeout(()=>onDone(updatedTmpl), 800);
     } catch(e) { setMsg("エラー: "+e.message); setSaving(false); }
   };
+
+  if (loadErr) return (
+    <div style={{ maxWidth:640, margin:"0 auto", padding:"24px 16px" }}>
+      <button onClick={onCancel} style={{ background:"none", border:"none", color:C.gray, fontSize:13, cursor:"pointer", padding:0, marginBottom:16 }}>← 戻る</button>
+      <p style={{ color:C.red, fontSize:13, background:"#FEF2F2", padding:"12px 14px", borderRadius:8, margin:0 }}>
+        ⚠️ 「{tmpl.label}」のレイヤーを読み込めなかったため、編集画面を開けません。データ保護のため保存もできません。<br/>{loadErr}
+      </p>
+    </div>
+  );
 
   if (loading) return <div style={{ textAlign:"center", padding:60 }}><Spinner size={36}/></div>;
 
