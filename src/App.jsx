@@ -61,6 +61,38 @@ const defaultImage = (src, w, h, zIndex=0) => ({
 
 const imgCache = {};
 
+// 取り込む写真を、書き出しサイズ CW×CH を覆える範囲まで縮小する（拡大はしない）。
+// 透過のある画像は PNG のまま、それ以外は JPEG(0.9)。縮小不要で小さいファイルは元のまま使う
+const PHOTO_KEEP_ORIGINAL_MAX = 1.5*1024*1024;
+function hasTransparency(ctx, w, h) {
+  const d=ctx.getImageData(0,0,w,h).data;
+  for(let i=3;i<d.length;i+=4) if(d[i]<255) return true;
+  return false;
+}
+function shrinkPhoto(img, srcDataUrl, file, CW, CH) {
+  const s=Math.min(1, Math.max(CW/img.width, CH/img.height));
+  if(s===1 && file.size<=PHOTO_KEEP_ORIGINAL_MAX) return srcDataUrl;
+  const w=Math.max(1,Math.round(img.width*s)), h=Math.max(1,Math.round(img.height*s));
+  const canvas=document.createElement("canvas"); canvas.width=w; canvas.height=h;
+  const ctx=canvas.getContext("2d");
+  ctx.imageSmoothingQuality="high";
+  ctx.drawImage(img,0,0,w,h);
+  if(file.type!=="image/jpeg" && hasTransparency(ctx,w,h)) return canvas.toDataURL("image/png");
+  return canvas.toDataURL("image/jpeg",0.9);
+}
+
+// localStorage への保存。失敗したら state を変えずに理由を表示する（保存形式・キー名は従来どおり）
+function writeSaves(next) {
+  try { localStorage.setItem(SS_KEY,JSON.stringify(next)); return true; }
+  catch(e) {
+    const quota = e?.name==="QuotaExceededError" || e?.code===22 || e?.code===1014;
+    alert(quota
+      ? "保存できませんでした（端末の保存容量が不足しています）。\nホーム画面の「保存した作品」から不要な作品を削除してから、もう一度保存してください。"
+      : "保存できませんでした。ブラウザの設定（プライベートモード等）をご確認ください。");
+    return false;
+  }
+}
+
 async function fetchTabs() {
   try {
     const res = await fetch(`${RAW_BASE}/tabs.json?t=${Date.now()}`);
@@ -163,18 +195,19 @@ function MainApp() {
   },[screen,elements,bgImg,fontsReady,PW,PH,selected,CW_,CH_,imgTick]);
 
   const pushHistory = useCallback((els)=>{
-    setHistory(h=>[...h.slice(-49),JSON.parse(JSON.stringify(els))]);
+    // 要素は常に新しいオブジェクトで更新しているため、参照のまま保持する（画像の data URL を複製しない）
+    setHistory(h=>[...h.slice(-49),els]);
     setRedoStack([]); // 新しい操作をしたらRedo履歴は無効になる
   },[]);
   const undo = ()=>{
     if(!history.length)return;
-    setRedoStack(r=>[...r.slice(-49), JSON.parse(JSON.stringify(elements))]);
+    setRedoStack(r=>[...r.slice(-49), elements]);
     setElements(history[history.length-1]);
     setHistory(h=>h.slice(0,-1));
   };
   const redo = ()=>{
     if(!redoStack.length)return;
-    setHistory(h=>[...h.slice(-49), JSON.parse(JSON.stringify(elements))]);
+    setHistory(h=>[...h.slice(-49), elements]);
     setElements(redoStack[redoStack.length-1]);
     setRedoStack(r=>r.slice(0,-1));
   };
@@ -210,13 +243,20 @@ function MainApp() {
   const addImage = (file)=>{
     const reader=new FileReader();
     reader.onload=ev=>{
-      const img=new Image();
-      img.onload=()=>{
-        imgCache[ev.target.result]=img;
+      const addLoaded=(image,src)=>{
+        imgCache[src]=image;
         pushHistory(elements);
-        const el=defaultImage(ev.target.result,img.width,img.height,0);
+        const el=defaultImage(src,image.width,image.height,0);
         setElements(e=>{ const updated=e.map(el=>({...el,zIndex:el.zIndex+1})); return [el,...updated]; });
         setSelected(el.id);
+      };
+      const img=new Image();
+      img.onload=()=>{
+        const src=shrinkPhoto(img, ev.target.result, file, CW_, CH_);
+        if(src===ev.target.result){ addLoaded(img,src); return; }
+        const small=new Image();
+        small.onload=()=>addLoaded(small,src);
+        small.src=src;
       };
       img.src=ev.target.result;
     };
@@ -228,7 +268,7 @@ function MainApp() {
   const duplicateEl = (id)=>{
     const el=elements.find(el=>el.id===id); if(!el)return;
     pushHistory(elements);
-    const newEl={...JSON.parse(JSON.stringify(el)), id:uid(), x:el.x+30, y:el.y+30, zIndex:elements.length};
+    const newEl={...el, id:uid(), x:el.x+30, y:el.y+30, zIndex:elements.length};
     setElements(e=>[...e,newEl]); setSelected(newEl.id);
   };
   const moveLayer = (id,dir)=>{
@@ -310,16 +350,19 @@ function MainApp() {
     const name=window.prompt("保存名を入力してください", defaultName);
     if(name===null)return;
     const work={ id:key, tab:activeTab, name:name||defaultName, elements:JSON.parse(JSON.stringify(elements)), createdAt:Date.now() };
-    const updated={...saves,[key]:work}; setSaves(updated); localStorage.setItem(SS_KEY,JSON.stringify(updated)); alert("保存しました！");
+    const updated={...saves,[key]:work};
+    if(!writeSaves(updated))return;
+    setSaves(updated); alert("保存しました！");
   };
   const renameWork = (id)=>{
     const work=saves[id]; if(!work)return;
     const name=window.prompt("新しい名前を入力してください", work.name);
     if(name===null||!name.trim())return;
-    const updated={...saves,[id]:{...work,name:name.trim()}}; setSaves(updated); localStorage.setItem(SS_KEY,JSON.stringify(updated));
+    const updated={...saves,[id]:{...work,name:name.trim()}};
+    if(writeSaves(updated)) setSaves(updated);
   };
   const loadWork  = (work)=>{ setActiveTab(work.tab); setElements(work.elements); setSelected(null); setEditing(null); setHistory([]); setRedoStack([]); setAlignMode(false); setAlignIds([]); setScreen("preview"); };
-  const deleteWork= (id)=>{ const u={...saves}; delete u[id]; setSaves(u); localStorage.setItem(SS_KEY,JSON.stringify(u)); };
+  const deleteWork= (id)=>{ const u={...saves}; delete u[id]; if(writeSaves(u)) setSaves(u); };
 
   const generate = async()=>{
     setGenerating(true); await new Promise(r=>setTimeout(r,80));
